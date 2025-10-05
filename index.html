@@ -262,8 +262,6 @@
       screens[screenName].classList.add('active');
     }
 
-    function uidShort(uid) { return uid ? uid.slice(0,6) : ''; }
-
     // -------------------------
     // Auth & Profile
     // -------------------------
@@ -274,74 +272,15 @@
       return data || null;
     }
 
-    async function ensureProfile(user) {
-      // returns profile row for given auth user (create if missing)
-      let p = await fetchProfile(user.id);
-      if (!p) {
-        // show profile creation screen
-        authUser = user;
-        show('profile');
-        return null;
-      }
-      profile = p;
-      return p;
-    }
+    // --- FINALIZED AUTH BUTTONS ---
 
-    // Setup auth state listener (WITH DEBUG LOGGING)
-supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log('onAuthStateChange fired!', { event, session });
-
-  authUser = session?.user ?? null;
-  console.log('authUser is now:', authUser);
-
-  if (!authUser) {
-    profile = null;
-    console.log('No authenticated user. Showing auth screen.');
-    show('auth');
-    return;
-  }
-
-  // user signed in, get or create profile
-  console.log(`User ${authUser.id} is signed in. Fetching profile...`);
-  const prof = await fetchProfile(authUser.id);
-  console.log('Profile fetch result:', prof);
-
-  if (!prof) {
-    // no profile row — show profile creation
-    console.log('No profile found for this user. Showing profile creation screen.');
-    show('profile');
-  } else {
-    profile = prof;
-    console.log('Profile found! Showing main screen.', profile);
-    populateMainProfile();
-    show('main');
-  }
-});
-
-    // initial check
-    (async ()=> {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        authUser = user;
-        const prof = await fetchProfile(user.id);
-        if (!prof) { show('profile'); }
-        else { profile = prof; populateMainProfile(); show('main'); }
-      } else {
-        show('auth');
-      }
-      lucide.createIcons();
-    })();
-
-    // Auth buttons
     btnGoogle.addEventListener('click', async () => {
-  // This version explicitly defines the redirect URL, which is safer for GitHub Pages.
-  const redirectURL = `${window.location.origin}${window.location.pathname}`;
-  
-  await supabase.auth.signInWithOAuth({ 
-    provider: 'google', 
-    options: { redirectTo: redirectURL }
-  });
-});
+      // This is the correct method for browser-based redirects.
+      await supabase.auth.signInWithRedirect({ 
+        provider: 'google', 
+        options: { redirectTo: window.location.href } // Use the current page URL as the redirect target
+      });
+    });
 
     btnEmail.addEventListener('click', async () => {
       const email = emailInput.value.trim();
@@ -350,18 +289,16 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       if (error) { alert('Failed to send magic link: ' + error.message); } else { alert('Magic link sent. Check your email.'); }
     });
 
-    // --- UPDATED CODE ---
-    // Use Supabase's built-in anonymous sign-in feature.
-    // Make sure you've enabled the "Anonymous" provider in your Supabase Auth settings.
     btnAnon.addEventListener('click', async () => {
-        const { error } = await supabase.auth.signInAnonymously();
-        if (error) {
-            console.error('Guest sign-in error:', error);
-            alert('Failed to sign in as guest: ' + error.message);
-        }
-        // The onAuthStateChange listener will automatically handle showing the profile screen.
+      // Correct way to handle guest sign-ins.
+      const { error } = await supabase.auth.signInAnonymously();
+      if (error) {
+          alert('Failed to sign in as guest: ' + error.message);
+      }
     });
-    // --- END UPDATED CODE ---
+
+    // --- END FINALIZED AUTH BUTTONS ---
+
 
     // Save profile (runs after new auth user signs in and needs profile)
     btnSaveProfile.addEventListener('click', async () => {
@@ -383,10 +320,8 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         }
       }
       
-      // For anonymous users, the email is null. Let's create a default username if one isn't provided.
       const finalUsername = username || `Guest-${authUser.id.slice(0, 6)}`;
 
-      // create profiles row (link to auth.users)
       const { data, error } = await supabase.from('profiles').insert([{ id: authUser.id, username: finalUsername, avatar_url }]).select().single();
       if (error) { console.error('create profile', error); alert('Failed to create profile: ' + error.message); return; }
       profile = data;
@@ -398,7 +333,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       meAvatarImg.src = profile.avatar_url || `https://placehold.co/64x64/0d0c22/ffffff?text=${profile.username.charAt(0)}`;
       meUsername.textContent = profile.username;
       const { data: u } = await supabase.auth.getUser();
-      meEmailEl.textContent = u?.user?.email || 'Guest'; // Display 'Guest' for anonymous users
+      meEmailEl.textContent = u?.user?.email || 'Guest';
     }
 
     btnLogout.addEventListener('click', async () => {
@@ -408,9 +343,50 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       show('auth');
     });
 
-    // -------------------------
-    // GAME CRUD & realtime
-    // -------------------------
+    // =================================================================
+    // --- REFACTORED AND ROBUST STARTUP LOGIC ---
+    // =================================================================
+
+    // This single function handles all UI updates based on the user's session.
+    async function handleUserSession(session) {
+      authUser = session?.user ?? null;
+
+      if (!authUser) {
+        profile = null;
+        show('auth');
+        return;
+      }
+
+      const prof = await fetchProfile(authUser.id);
+
+      if (!prof) {
+        show('profile');
+      } else {
+        profile = prof;
+        populateMainProfile();
+        show('main');
+      }
+    }
+
+    // 1. Set up a listener for any future auth changes (e.g., user logs out).
+    supabase.auth.onAuthStateChange((event, session) => {
+      // This listener handles events like SIGNED_IN, SIGNED_OUT, etc., after the initial load.
+      if (event !== 'INITIAL_SESSION') {
+        handleUserSession(session);
+      }
+    });
+
+    // 2. Check for the session when the page loads. This is critical for the redirect.
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await handleUserSession(session);
+      lucide.createIcons();
+    })();
+
+    // -------------------------------------------------------------
+    // --- GAME LOGIC (UNCHANGED) ---
+    // -------------------------------------------------------------
+
     function makeGameCode() {
       return Math.random().toString(36).substring(2,8).toUpperCase();
     }
@@ -425,11 +401,8 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       const { data, error } = await supabase.from('games').insert([payload]).select().single();
       if (error) { console.error('create game', error); return alert('Failed to create game'); }
 
-      // add host to players table
       await supabase.from('players').insert([{ game_id: data.id, user_id: profile.id, score:0, is_host:true }]);
-      // open lobby
       currentGame = data;
-      currentGame.code = data.code; // for display
       startListening(data.id);
       showLobby(data);
     }
@@ -437,24 +410,19 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     async function joinGameByCode(code) {
       const { data: g, error } = await supabase.from('games').select('*').eq('code', code.toUpperCase()).single();
       if (error || !g) { console.error('join', error); return alert('Game not found'); }
-      // add player row
       await supabase.from('players').insert([{ game_id: g.id, user_id: profile.id, score:0 }]);
       currentGame = g;
       startListening(g.id);
       showLobby(g);
     }
 
-    // Start listening to changes: games (this game), players for game, chat (optional)
     function startListening(gameId) {
-      // detach old
       gameChannels.forEach(ch => ch.unsubscribe());
       gameChannels = [];
 
-      // game row
       const chGame = supabase.channel(`realtime-game-${gameId}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${gameId}` }, payload => {
           currentGame = payload.new;
-          // render according to state
           if (currentGame.state === 'waiting') showLobby(currentGame);
           else if (currentGame.state === 'in_progress' || currentGame.state === 'round_over') showGameScreen(currentGame);
           else if (currentGame.state === 'finished') showGameOver(currentGame);
@@ -465,22 +433,18 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         })
         .subscribe();
 
-      // players changes
       const chPlayers = supabase.channel(`realtime-players-${gameId}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `game_id=eq.${gameId}` }, payload => {
-          // fetch current players
           fetchPlayers(gameId);
         })
         .subscribe();
 
-      // chat (optional)
       const chChat = supabase.channel(`realtime-chat-${gameId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat', filter: `game_id=eq.${gameId}` }, payload => {
           appendChat(payload.new.username, payload.new.text);
         }).subscribe();
 
       gameChannels.push(chGame, chPlayers, chChat);
-      // initial loads
       fetchPlayers(gameId);
       fetchGameRow(gameId);
       fetchChat(gameId);
@@ -495,7 +459,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     async function fetchPlayers(gameId) {
       const { data, error } = await supabase.from('players').select('*, profiles(username,avatar_url)').eq('game_id', gameId).order('joined_at', { ascending: true });
       if (error) { console.error('fetchPlayers',error); return; }
-      // shape players list
       players = data.map(p => ({
         id: p.id, user_id: p.user_id, username: p.profiles?.username || '', avatar: p.profiles?.avatar_url || '', score: p.score || 0, current_answer: p.answer, eliminated: p.eliminated
       }));
@@ -509,20 +472,14 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       if (data) data.forEach(m => appendChat(m.username, m.text));
     }
 
-    async function fetchPlayersSimple(gameId) {
-      const { data } = await supabase.from('players').select('*').eq('game_id', gameId);
-      return data || [];
-    }
-
-    // render lobby and players
     function showLobby(gameRow) {
       currentGame = gameRow;
       displayCode.textContent = currentGame.code || currentGame.id.slice(0,6).toUpperCase();
       lobbyCount.textContent = `(${players.length || 0})`;
       show('lobby');
-
-      // host actions
-      btnStart.disabled = !(currentGame.host_id === profile.id && players.length >= 2);
+      if (currentGame && profile) {
+        btnStart.disabled = !(currentGame.host_id === profile.id && players.length >= 2);
+      }
     }
 
     displayCode.addEventListener('click', async () => {
@@ -533,7 +490,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       lobbyPlayers.innerHTML = players.map(p => `
         <div class="flex items-center space-x-3">
           <img src="${p.avatar || 'https://placehold.co/64x64/0d0c22/ffffff?text=' + (p.username?.charAt(0)||'P')}" class="w-10 h-10 rounded-full">
-          <div>${p.username} ${p.user_id === currentGame.host_id ? '(Host)' : ''}</div>
+          <div>${p.username} ${p.user_id === currentGame?.host_id ? '(Host)' : ''}</div>
         </div>
       `).join('');
       lobbyCount.textContent = `(${players.length})`;
@@ -542,7 +499,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       }
     }
 
-    // leave / cleanup
     btnLeave.addEventListener('click', () => leaveGame());
     async function leaveGame() {
       if (!currentGame) { show('main'); return; }
@@ -556,16 +512,12 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       show('main');
     }
 
-    // start game
     btnStart.addEventListener('click', async () => {
-      if (!currentGame) return;
-      if (currentGame.host_id !== profile.id) return alert('Only host can start');
+      if (!currentGame || currentGame.host_id !== profile.id) return;
       const settings = currentGame.settings;
-      // set current_question to 0, state in_progress, timer_value
       await supabase.from('games').update({ state: 'in_progress', current_question: 0, timer_value: settings.timePerQuestion }).eq('id', currentGame.id);
     });
 
-    // join flow
     btnCreate.addEventListener('click', createGame);
     btnJoin.addEventListener('click', () => show('join'));
     joinBack.addEventListener('click', () => show('main'));
@@ -575,7 +527,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       await joinGameByCode(code);
     });
 
-    // show game UI
     function showGameScreen(gameRow) {
       currentGame = gameRow;
       show('game');
@@ -584,14 +535,13 @@ supabase.auth.onAuthStateChange(async (event, session) => {
 
     function renderGameScreen() {
       if (!currentGame) return;
-      qCounter.textContent = `Q: ${Math.max(0,currentGame.current_question+1)}/${currentGame.settings?.numQuestions ?? currentGame.questions?.length ?? 0}`;
+      qCounter.textContent = `Q: ${Math.max(0,currentGame.current_question+1)}/${currentGame.settings?.numQuestions ?? 0}`;
       timerDisplay.textContent = currentGame.timer_value ?? currentGame.settings?.timePerQuestion ?? 0;
 
       const idx = currentGame.current_question;
       const q = currentGame.questions && currentGame.questions[idx] ? currentGame.questions[idx] : null;
       if (!q) { questionText.textContent = 'Waiting...'; answersEl.innerHTML = ''; return; }
       questionText.textContent = q.question;
-      // determine my player
       const mePlayer = players.find(p => p.user_id === profile.id);
       const myAnswer = mePlayer?.current_answer ?? null;
 
@@ -606,22 +556,18 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       }).join('');
 
       renderPlayersRow();
-      // If host and in_progress, ensure timer runs on host
       if (currentGame.state === 'in_progress' && currentGame.host_id === profile.id) startHostTimer();
     }
 
-    // answer click
     answersEl.addEventListener('click', async (e) => {
       const btn = e.target.closest('button[data-index]');
       if (!btn || !currentGame) return;
       const idx = parseInt(btn.dataset.index, 10);
-      // set player's answer in players row
       const { data: myR } = await supabase.from('players').select('id').eq('game_id', currentGame.id).eq('user_id', profile.id).single();
       if (!myR) return;
       await supabase.from('players').update({ answer: idx }).eq('id', myR.id);
     });
 
-    // players row render
     function renderPlayersRow() {
       playersRow.innerHTML = players.slice(0,4).map(p => {
         const isMe = p.user_id === profile.id;
@@ -636,7 +582,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       }).join('');
     }
 
-    // chat
     async function appendChat(username, text) {
       const el = document.createElement('div'); el.className = 'p-1';
       el.innerHTML = `<strong class="text-blue-600">${escapeHtml(username)}:</strong> ${escapeHtml(text)}`;
@@ -651,7 +596,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     chatText.addEventListener('keydown', (e) => { if (e.key === 'Enter') chatSend.click(); });
 
 
-    // Game evaluation + host timer
     function startHostTimer() {
       if (hostTimer) return;
       hostTimer = setInterval(async () => {
@@ -668,7 +612,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 
     async function evaluateRound() {
-      // host computes correct answers, awards scores, resets answers, sets round_over then advances
       if (!currentGame || profile.id !== currentGame.host_id) return;
       const gid = currentGame.id;
       const { data: gameRow } = await supabase.from('games').select('*').eq('id', gid).single();
@@ -676,23 +619,19 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       if (!gameRow || !playersRows) return;
 
       const q = gameRow.questions[gameRow.current_question];
-      // award points
       for (const p of playersRows) {
         if (p.answer !== null && p.answer === q.correct) {
           let add = 50 + (gameRow.timer_value * 5);
           await supabase.from('players').update({ score: (p.score||0) + add }).eq('id', p.id);
         }
       }
-      // set round_over
       await supabase.from('games').update({ state: 'round_over' }).eq('id', gid);
-      // wait 3s then advance
       setTimeout(() => advanceGame(), 3000);
     }
 
     async function advanceGame() {
       if (!currentGame || profile.id !== currentGame.host_id) return;
       const gid = currentGame.id;
-      // reset answers for all players
       await supabase.from('players').update({ answer: null }).eq('game_id', gid);
 
       const { data: gameRow } = await supabase.from('games').select('*').eq('id', gid).single();
@@ -700,20 +639,16 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       const total = gameRow.settings.numQuestions;
 
       if (next >= (gameRow.questions?.length ?? total)) {
-        // finish - decide winner by score
         const { data: playersRows } = await supabase.from('players').select('*').eq('game_id', gid);
         const sorted = playersRows.slice().sort((a,b)=> (b.score||0) - (a.score||0));
         await supabase.from('games').update({ state: 'finished', winner_id: sorted[0]?.user_id ?? null }).eq('id', gid);
         return;
       }
-      // else set next question and timer
       await supabase.from('games').update({ state: 'in_progress', current_question: next, timer_value: gameRow.settings.timePerQuestion }).eq('id', gid);
     }
 
-    // show game over
     function showGameOver(gameRow) {
       show('over');
-      // fetch players final
       (async ()=>{
         const { data } = await supabase.from('players').select('*, profiles(username,avatar_url)').eq('game_id', gameRow.id);
         if (!data) return;
@@ -729,7 +664,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     }
 
     backMenu.addEventListener('click', () => {
-      // cleanup: leave
       if (currentGame) leaveGame();
       show('main');
     });
