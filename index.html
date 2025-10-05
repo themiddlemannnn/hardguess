@@ -324,12 +324,14 @@
 
     // Auth buttons
     btnGoogle.addEventListener('click', async () => {
-        // This relies on the "Site URL" and "Redirect URLs" you set in your Supabase dashboard.
-        // Make sure they are configured correctly for your GitHub pages URL.
-        await supabase.auth.signInWithOAuth({
-            provider: 'google',
-        });
-    });
+  // This version explicitly defines the redirect URL, which is safer for GitHub Pages.
+  const redirectURL = `${window.location.origin}${window.location.pathname}`;
+  
+  await supabase.auth.signInWithOAuth({ 
+    provider: 'google', 
+    options: { redirectTo: redirectURL }
+  });
+});
 
     btnEmail.addEventListener('click', async () => {
       const email = emailInput.value.trim();
