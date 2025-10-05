@@ -287,26 +287,36 @@
       return p;
     }
 
-    // Setup auth state listener
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      authUser = session?.user ?? null;
-      if (!authUser) {
-        profile = null;
-        show('auth');
-        return;
-      }
+    // Setup auth state listener (WITH DEBUG LOGGING)
+supabase.auth.onAuthStateChange(async (event, session) => {
+  console.log('onAuthStateChange fired!', { event, session });
 
-      // user signed in, get or create profile
-      const prof = await fetchProfile(authUser.id);
-      if (!prof) {
-        // no profile row — show profile creation
-        show('profile');
-      } else {
-        profile = prof;
-        populateMainProfile();
-        show('main');
-      }
-    });
+  authUser = session?.user ?? null;
+  console.log('authUser is now:', authUser);
+
+  if (!authUser) {
+    profile = null;
+    console.log('No authenticated user. Showing auth screen.');
+    show('auth');
+    return;
+  }
+
+  // user signed in, get or create profile
+  console.log(`User ${authUser.id} is signed in. Fetching profile...`);
+  const prof = await fetchProfile(authUser.id);
+  console.log('Profile fetch result:', prof);
+
+  if (!prof) {
+    // no profile row — show profile creation
+    console.log('No profile found for this user. Showing profile creation screen.');
+    show('profile');
+  } else {
+    profile = prof;
+    console.log('Profile found! Showing main screen.', profile);
+    populateMainProfile();
+    show('main');
+  }
+});
 
     // initial check
     (async ()=> {
