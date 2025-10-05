@@ -287,36 +287,30 @@
       return p;
     }
 
-    // Setup auth state listener (WITH DEBUG LOGGING)
-supabase.auth.onAuthStateChange(async (event, session) => {
-  console.log('onAuthStateChange fired!', { event, session });
+    // Setup auth state listener
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      // console.log('onAuthStateChange fired!', { event, session }); // You can re-enable this for debugging
 
-  authUser = session?.user ?? null;
-  console.log('authUser is now:', authUser);
+      authUser = session?.user ?? null;
 
-  if (!authUser) {
-    profile = null;
-    console.log('No authenticated user. Showing auth screen.');
-    show('auth');
-    return;
-  }
+      if (!authUser) {
+        profile = null;
+        show('auth');
+        return;
+      }
 
-  // user signed in, get or create profile
-  console.log(`User ${authUser.id} is signed in. Fetching profile...`);
-  const prof = await fetchProfile(authUser.id);
-  console.log('Profile fetch result:', prof);
+      // user signed in, get or create profile
+      const prof = await fetchProfile(authUser.id);
 
-  if (!prof) {
-    // no profile row — show profile creation
-    console.log('No profile found for this user. Showing profile creation screen.');
-    show('profile');
-  } else {
-    profile = prof;
-    console.log('Profile found! Showing main screen.', profile);
-    populateMainProfile();
-    show('main');
-  }
-});
+      if (!prof) {
+        // no profile row — show profile creation
+        show('profile');
+      } else {
+        profile = prof;
+        populateMainProfile();
+        show('main');
+      }
+    });
 
     // initial check
     (async ()=> {
@@ -333,15 +327,29 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     })();
 
     // Auth buttons
+    // =================================================================
+    // START: CODE FIX
+    // =================================================================
     btnGoogle.addEventListener('click', async () => {
-  // This version explicitly defines the redirect URL, which is safer for GitHub Pages.
-  const redirectURL = `${window.location.origin}${window.location.pathname}`;
-  
-  await supabase.auth.signInWithOAuth({ 
-    provider: 'google', 
-    options: { redirectTo: redirectURL }
-  });
-});
+      // This version explicitly defines the redirect URL. This is much more reliable,
+      // especially for apps hosted on static platforms like GitHub Pages or Vercel.
+      const redirectURL = `${window.location.origin}${window.location.pathname}`;
+      
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider: 'google', 
+        options: { 
+          redirectTo: redirectURL 
+        }
+      });
+
+      if (error) {
+        console.error("Google Sign-In Error:", error);
+        alert("Could not sign in with Google: " + error.message);
+      }
+    });
+    // =================================================================
+    // END: CODE FIX
+    // =================================================================
 
     btnEmail.addEventListener('click', async () => {
       const email = emailInput.value.trim();
@@ -350,18 +358,13 @@ supabase.auth.onAuthStateChange(async (event, session) => {
       if (error) { alert('Failed to send magic link: ' + error.message); } else { alert('Magic link sent. Check your email.'); }
     });
 
-    // --- UPDATED CODE ---
-    // Use Supabase's built-in anonymous sign-in feature.
-    // Make sure you've enabled the "Anonymous" provider in your Supabase Auth settings.
     btnAnon.addEventListener('click', async () => {
         const { error } = await supabase.auth.signInAnonymously();
         if (error) {
             console.error('Guest sign-in error:', error);
             alert('Failed to sign in as guest: ' + error.message);
         }
-        // The onAuthStateChange listener will automatically handle showing the profile screen.
     });
-    // --- END UPDATED CODE ---
 
     // Save profile (runs after new auth user signs in and needs profile)
     btnSaveProfile.addEventListener('click', async () => {
@@ -383,7 +386,6 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         }
       }
       
-      // For anonymous users, the email is null. Let's create a default username if one isn't provided.
       const finalUsername = username || `Guest-${authUser.id.slice(0, 6)}`;
 
       // create profiles row (link to auth.users)
