@@ -82,7 +82,7 @@
           <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
             <input id="answer-input" type="text" placeholder="Type answer or click a choice" />
             <button id="submit-answer">Submit</button>
-            <button id="buzz-btn">Buzz</button>
+            <button id="buzz-btn" style="display:none">Buzz</button> <!-- Hiding unused Buzz button -->
           </div>
 
           <div id="host-controls" style="display:flex;gap:8px;align-items:center;margin-top:12px">
@@ -215,7 +215,8 @@
    =========================== */
 const SUPABASE_URL = "https://kldsmwvljwnosjmvehoq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZHNtd3Zsandub3NqbXZlaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTA3MDYsImV4cCI6MjA3NTE4NjcwNn0.MR28bfvXNmg6RRKFXNxyO2abJVIvgkNoZ7Baib-AOEQ";
-const OAUTH_REDIRECT = "https://kldsmwvljwnosjmvehoq.supabase.co/auth/v1/callback";
+// FIX 1: The redirect URL must be the page itself for the client-side auth flow to work.
+const OAUTH_REDIRECT = window.location.href;
 const AVATAR_BUCKET = "avatars";
 
 /* ===========================
@@ -256,7 +257,6 @@ const uploadAvatarBtn = document.getElementById('upload-avatar');
 const avatarFileInput = document.getElementById('avatar-file');
 const adminPanel = document.getElementById('admin-panel');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
-const adminOpenBtn = document.getElementById('admin-toggle-btn');
 const addQuestionBtn = document.getElementById('add-question');
 const refreshQuestionsBtn = document.getElementById('refresh-questions');
 const qText = document.getElementById('q-text');
@@ -265,6 +265,7 @@ const opt1 = document.getElementById('opt-1');
 const opt2 = document.getElementById('opt-2');
 const opt3 = document.getElementById('opt-3');
 const correctIndex = document.getElementById('correct-index');
+const toggleAdminBtn = document.getElementById('toggle-admin');
 
 const questionTextEl = document.getElementById('question-text');
 const choicesEl = document.getElementById('choices');
@@ -272,7 +273,6 @@ const timerEl = document.getElementById('timer');
 const roundEl = document.getElementById('round');
 const playersCountEl = document.getElementById('players-count');
 const submitAnswerBtn = document.getElementById('submit-answer');
-const buzzBtn = document.getElementById('buzz-btn');
 const answerInput = document.getElementById('answer-input');
 
 const questionTimeSelect = document.getElementById('question-time');
@@ -299,16 +299,13 @@ async function initAuth(){
   if (session?.user) await setUser(session.user);
   else updateSignedOutUI();
 
-  // handle redirect session case
-  const url = new URL(location.href);
-  if (url.searchParams.get('access_token') || url.searchParams.get('provider_token')) {
-    const { data } = await supabase.auth.getSession();
-    if (data.session?.user) await setUser(data.session.user);
-  }
-
   supabase.auth.onAuthStateChange((event, session) => {
-    if (session?.user) setUser(session.user);
-    else { currentUser = null; myProfile = { id:null, username:'Guest', avatar_url:null, games_won:0 }; updateSignedOutUI(); }
+    if (event === 'SIGNED_IN' && session?.user) setUser(session.user);
+    if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      myProfile = { id:null, username:'Guest', avatar_url:null, games_won:0 };
+      updateSignedOutUI();
+    }
   });
 }
 
@@ -339,7 +336,6 @@ function updateSignedOutUI(){
   myAvatarImg.src = defaultAvatar('G');
 }
 
-/* sign-in/out button */
 authBtn.addEventListener('click', async ()=>{
   if (!currentUser) {
     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: OAUTH_REDIRECT } });
@@ -355,20 +351,18 @@ authBtn.addEventListener('click', async ()=>{
 uploadAvatarBtn.addEventListener('click', ()=> avatarFileInput.click());
 avatarFileInput.addEventListener('change', async (e)=>{
   const f = e.target.files?.[0];
-  if (!f) return;
-  if (!currentUser) return alert('Sign in first');
+  if (!f || !currentUser) return;
   const ext = f.name.split('.').pop();
   const filePath = `${myProfile.id}-${Date.now()}.${ext}`;
   try {
     const { error: uploadError } = await supabase.storage.from(AVATAR_BUCKET).upload(filePath, f, { upsert: true });
     if (uploadError) throw uploadError;
     const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
-    const publicUrl = data?.publicUrl || null;
+    const publicUrl = data?.publicUrl;
     if (publicUrl) {
       await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', myProfile.id);
       myProfile.avatar_url = publicUrl;
       myAvatarImg.src = publicUrl;
-      // broadcast profile update if in a game
       if (channel && currentGame) broadcast({ type:'player-profile-updated', user_id: myProfile.id, avatar_url: publicUrl, username: myProfile.username });
       alert('Avatar uploaded.');
     }
@@ -383,7 +377,6 @@ joinGameBtn.addEventListener('click', joinGame);
 
 async function createGame(){
   if (!currentUser) return alert('Sign in first');
-  // generate unique 6-digit code
   let code;
   for (let i=0;i<6;i++){
     code = (Math.floor(Math.random()*900000)+100000).toString();
@@ -393,7 +386,7 @@ async function createGame(){
   }
   const settings = { question_time: Number(questionTimeSelect.value), eliminate_after: Number(eliminateAfterSelect.value), total_rounds: Number(totalRoundsInput.value) };
   const payload = { game_code: code, host_id: currentUser.id, status: 'waiting', settings, is_active: true };
-  const { data: game, error } = await supabase.from('games').insert(payload).select('*').maybeSingle();
+  const { data: game, error } = await supabase.from('games').insert(payload).select('*').single();
   if (error || !game) return alert('Could not create game: ' + (error?.message || 'unknown'));
   currentGame = game;
   roomCodeEl.textContent = game.game_code;
@@ -407,7 +400,6 @@ async function createGame(){
   showSystem('Game created — share code: ' + game.game_code);
 }
 
-/* join existing game by code */
 async function joinGame(){
   if (!currentUser) return alert('Sign in first');
   const code = joinCodeInput.value?.trim();
@@ -418,26 +410,19 @@ async function joinGame(){
   currentGame = game;
   roomCodeEl.textContent = game.game_code;
   roomStatusEl.textContent = game.status || 'waiting';
-  await setupChannel(game.id);
   await joinAsPlayer(game.id);
+  await setupChannel(game.id);
   showSystem('Joined game ' + game.game_code);
 }
 
-/* register as a player row for current game */
 async function joinAsPlayer(gameId){
   if (!currentUser) return;
-  // limit players to 4
-  const { data: players } = await supabase.from('players').select('*').eq('game_id', gameId);
+  const { data: players } = await supabase.from('players').select('id', { count: 'exact' }).eq('game_id', gameId);
   if (players && players.length >= 4) return alert('Room full (4 players).');
-  // upsert profile
-  await supabase.from('profiles').upsert({ id: myProfile.id, username: myProfile.username, avatar_url: myProfile.avatar_url }, { onConflict: 'id' });
 
-  const { data: existing } = await supabase.from('players').select('*').eq('game_id', gameId).eq('user_id', currentUser.id).maybeSingle();
-  if (!existing) {
-    const { error } = await supabase.from('players').insert({ game_id: gameId, user_id: currentUser.id, score: 0, is_eliminated: false });
-    if (error) console.warn('player insert error', error);
-  }
-  // broadcast
+  const { error } = await supabase.from('players').upsert({ game_id: gameId, user_id: currentUser.id }, { onConflict: 'game_id, user_id' });
+  if (error) console.warn('player upsert error', error);
+
   broadcast({ type:'player-joined', user_id: myProfile.id, username: myProfile.username, avatar_url: myProfile.avatar_url });
   await refreshPlayers();
 }
@@ -446,7 +431,6 @@ async function joinAsPlayer(gameId){
    Realtime channel (one per game)
    =========================== */
 async function setupChannel(gameId){
-  // unsubscribe old
   if (channel) {
     try { await channel.unsubscribe(); } catch(e){}
     channel = null;
@@ -454,32 +438,39 @@ async function setupChannel(gameId){
   const chName = `room-${gameId}`;
   channel = supabase.channel(chName);
 
-  channel.on('broadcast', { event: 'chat' }, (payload) => {
-    if (!payload) return;
-    appendMessage(payload.username || 'Player', payload.text || payload.message || '');
+  // FIX 2: Correctly handle incoming broadcast messages. The actual data is in `message.payload`.
+  channel.on('broadcast', { event: 'chat' }, (message) => {
+    if (message && message.payload) {
+      appendMessage(message.payload.username || 'Player', message.payload.text || message.payload.message || '');
+    }
   });
 
-  channel.on('broadcast', { event: 'game' }, (payload) => {
-    if (!payload) return handleGameEvent(payload);
+  channel.on('broadcast', { event: 'game' }, (message) => {
+    if (message && message.payload) {
+      handleGameEvent(message.payload);
+    }
   });
 
-  channel.on('broadcast', { event: 'player' }, (payload) => {
-    if (!payload) return handlePlayerEvent(payload);
+  channel.on('broadcast', { event: 'player' }, (message) => {
+    if (message && message.payload) {
+      handlePlayerEvent(message.payload);
+    }
   });
 
-  await channel.subscribe();
-  showSystem('Realtime connected.');
-  await refreshPlayers();
-  await refreshMessages();
+  await channel.subscribe((status) => {
+    if (status === 'SUBSCRIBED') {
+      showSystem('Realtime connected.');
+      refreshPlayers();
+      refreshMessages();
+    }
+  });
 }
 
-/* send broadcast helper */
 function broadcast(obj){
   if (!channel) return;
-  // choose event mapping for payload types
   let event = 'game';
   if (obj.type === 'chat') event = 'chat';
-  if (obj.type && obj.type.startsWith('player-')) event = 'player';
+  else if (obj.type?.startsWith('player-')) event = 'player';
   channel.send({ type: 'broadcast', event, payload: obj });
 }
 
@@ -495,32 +486,31 @@ async function refreshPlayers(){
   const profMap = (profiles || []).reduce((acc,p)=> (acc[p.id]=p,acc), {});
   localPlayers = players.map(p => {
     const pr = profMap[p.user_id] || {};
-    return { id: p.id, user_id: p.user_id, username: pr.username || 'Player', avatar_url: pr.avatar_url || defaultAvatar(pr.username||'P'), score: p.score || 0, is_eliminated: p.is_eliminated || false };
+    return { ...p, username: pr.username || 'Player', avatar_url: pr.avatar_url || defaultAvatar(pr.username||'P') };
   });
   renderPlayers();
 }
 
 function renderPlayers(){
   playersListEl.innerHTML = '';
-  localPlayers.forEach(p => {
+  localPlayers.sort((a,b) => b.score - a.score).forEach(p => {
     const el = document.createElement('div');
     el.className = 'player';
     el.innerHTML = `<img src="${p.avatar_url}" class="avatar ${p.user_id === myProfile.id ? 'highlight' : ''}" />
-      <div style="font-weight:600">${escapeHtml((p.username||'').split(' ')[0]||p.username)}</div>
+      <div style="font-weight:600; text-decoration: ${p.is_eliminated ? 'line-through' : 'none'}">${escapeHtml((p.username||'').split(' ')[0]||p.username)}</div>
       <div class="muted">Score: ${p.score}</div>`;
     playersListEl.appendChild(el);
   });
   playersCountEl.textContent = localPlayers.length;
 }
 
-/* refresh messages from DB */
 async function refreshMessages(){
   if (!currentGame) return;
   const { data } = await supabase.from('chat_messages').select('user_id,message,created_at').eq('game_id', currentGame.id).order('created_at', { ascending: true }).limit(200);
   messagesEl.innerHTML = '';
   if (!data) return;
   const ids = Array.from(new Set(data.map(m=>m.user_id).filter(Boolean)));
-  const { data: profiles } = ids.length ? await supabase.from('profiles').select('id,username,avatar_url').in('id', ids) : { data: [] };
+  const { data: profiles } = ids.length ? await supabase.from('profiles').select('id,username').in('id', ids) : { data: [] };
   const profMap = (profiles||[]).reduce((acc,p)=> (acc[p.id]=p,acc), {});
   data.forEach(m => {
     const p = profMap[m.user_id] || {};
@@ -531,21 +521,16 @@ async function refreshMessages(){
 function appendMessage(username, text){
   const d = document.createElement('div');
   d.className = 'msg';
-  d.innerHTML = `<strong>${escapeHtml(username)}</strong><div style="margin-top:6px">${escapeHtml(text)}</div>`;
+  d.innerHTML = `<strong>${escapeHtml(username)}:</strong> <div>${escapeHtml(text)}</div>`;
   messagesEl.appendChild(d);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-/* chat send */
 sendChatBtn.addEventListener('click', async ()=>{
   const txt = chatInput.value?.trim();
-  if (!txt || !currentGame) return;
-  // save in DB
-  const { error } = await supabase.from('chat_messages').insert({ game_id: currentGame.id, user_id: currentUser.id, message: txt });
-  if (error) console.warn('chat insert', error);
-  // broadcast
-  broadcast({ type: 'chat', username: myProfile.username, user_id: myProfile.id, text: txt, ts: nowISO() });
-  appendMessage(myProfile.username, txt);
+  if (!txt || !currentGame || !currentUser) return;
+  // Don't save to DB, just broadcast for ephemeral chat
+  broadcast({ type: 'chat', username: myProfile.username, user_id: myProfile.id, text: txt });
   chatInput.value = '';
 });
 
@@ -553,89 +538,92 @@ sendChatBtn.addEventListener('click', async ()=>{
    Game events + host logic
    =========================== */
 function handlePlayerEvent(payload){
-  if (!payload) return;
-  if (payload.type === 'player-joined') { appendMessage('System', `${payload.username} joined`); refreshPlayers(); }
-  if (payload.type === 'player-left') { appendMessage('System', `${payload.username} left`); refreshPlayers(); }
+  if (!payload || !payload.type) return;
+  if (payload.type === 'player-joined') { showSystem(`${payload.username} joined`); refreshPlayers(); }
+  if (payload.type === 'player-left') { showSystem(`${payload.username} left`); refreshPlayers(); }
   if (payload.type === 'player-profile-updated') { refreshPlayers(); }
+  if (payload.type === 'player-eliminated') { showSystem(`A player was eliminated.`); refreshPlayers(); }
 }
 
-/* handle game broadcasts (questions, round-result, start/stop) */
 async function handleGameEvent(payload){
-  if (!payload) return;
+  if (!payload || !payload.type) return;
   switch(payload.type){
     case 'question':
-      // show question to all players
       showQuestion(payload);
+      startTimer(payload.question_time || 10);
       break;
     case 'round-result':
       showRoundResult(payload);
       break;
     case 'game-started':
       showSystem('Game started');
+      roomStatusEl.textContent = 'In Progress';
       break;
     case 'game-ended':
-      showSystem('Game ended');
+      showSystem('Game ended. Thanks for playing!');
+      roomStatusEl.textContent = 'Ended';
+      if (roundTimer) clearInterval(roundTimer);
+      break;
+    case 'answer':
+      // Host evaluates remote answers
+      if (currentGame && currentUser && currentGame.host_id === currentUser.id) {
+        await evaluateAnswerFromRemote(payload);
+      } else {
+        // Non-host clients see a generic notice
+        appendMessage('System', `${payload.username} submitted an answer.`);
+      }
       break;
     default:
-      console.log('game event', payload);
+      log('Unknown game event', payload);
   }
 }
 
-/* when host clicks Start: prepare question_ids & start round loop */
-startGameBtn.addEventListener('click', startGame);
-
-async function startGame(){
-  if (!currentGame) return alert('No game');
-  if (currentGame.host_id !== currentUser.id) return alert('Only host can start');
-  // fetch all question ids
-  const { data: rows } = await supabase.from('questions').select('id');
-  if (!rows || rows.length === 0) return alert('No questions — add via Admin first');
+startGameBtn.addEventListener('click', async () => {
+  if (!currentGame || (currentUser && currentGame.host_id !== currentUser.id)) return alert('Only the host can start the game.');
+  const { data: rows, error: qError } = await supabase.from('questions').select('id');
+  if (qError || !rows || rows.length === 0) return alert('No questions found. Add some from the Admin panel first.');
   const ids = rows.map(r=>r.id);
   shuffle(ids);
   const settings = { question_time: Number(questionTimeSelect.value), eliminate_after: Number(eliminateAfterSelect.value), total_rounds: Number(totalRoundsInput.value) };
   const { error } = await supabase.from('games').update({ status: 'inprogress', question_ids: ids, current_question_index: 0, settings }).eq('id', currentGame.id);
-  if (error) console.error('start update', error);
+  if (error) { console.error('start game update error', error); return; }
   currentGame.status = 'inprogress';
   currentGame.question_ids = ids;
   currentGame.current_question_index = 0;
   currentGame.settings = settings;
   broadcast({ type: 'game-started' });
-  showSystem('Game started');
   await nextRound();
-}
-
-/* End game */
-endGameBtn.addEventListener('click', async ()=>{
-  if (!currentGame || currentGame.host_id !== currentUser.id) return;
-  await supabase.from('games').update({ status: 'ended', is_active: false }).eq('id', currentGame.id);
-  broadcast({ type:'game-ended' });
-  showSystem('Host ended the game.');
 });
 
-/* Next round (host) */
+endGameBtn.addEventListener('click', async ()=>{
+  if (!currentGame || !currentUser || currentGame.host_id !== currentUser.id) return;
+  await finishGame();
+});
+
 async function nextRound(){
   if (!currentGame) return;
   currentGame.current_question_index = (currentGame.current_question_index || 0) + 1;
-  // check total rounds
-  const total = currentGame.settings?.total_rounds || 9999;
-  if (currentGame.current_question_index > total) { await finishGame(); return; }
-  // persist index
+  const totalRounds = currentGame.settings?.total_rounds || 10;
+  if (currentGame.current_question_index > totalRounds) {
+    await finishGame();
+    return;
+  }
   await supabase.from('games').update({ current_question_index: currentGame.current_question_index }).eq('id', currentGame.id);
-  const idx = currentGame.current_question_index - 1;
-  const qid = currentGame.question_ids?.[idx];
-  if (!qid) { showSystem('No question id — finishing'); await finishGame(); return; }
-  const { data: q } = await supabase.from('questions').select('*').eq('id', qid).maybeSingle();
-  if (!q) { showSystem('Question missing — skipping'); await nextRound(); return; }
+  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
+  if (!qid) {
+    showSystem('No more questions available.');
+    await finishGame();
+    return;
+  }
+  const { data: q } = await supabase.from('questions').select('*').eq('id', qid).single();
+  if (!q) { showSystem('Question missing, skipping...'); await sleep(1000); await nextRound(); return; }
+
   const qpayload = { type:'question', id: q.id, question_text: q.question_text, options: q.options, index: currentGame.current_question_index, question_time: currentGame.settings?.question_time || 10 };
-  // broadcast to clients
   broadcast(qpayload);
-  showQuestion(qpayload);
-  // start host-side timer (clients will show their own timers)
-  startTimer(qpayload.question_time || 10);
+  showQuestion(qpayload); // Host also sees the question
   roundLocked = false;
 }
 
-/* show question locally */
 function showQuestion(q){
   questionTextEl.textContent = q.question_text || '—';
   choicesEl.innerHTML = '';
@@ -649,7 +637,6 @@ function showQuestion(q){
   roundEl.textContent = q.index || (currentGame?.current_question_index || 0);
 }
 
-/* start round timer */
 function startTimer(seconds){
   clearInterval(roundTimer);
   timeLeft = seconds;
@@ -659,112 +646,96 @@ function startTimer(seconds){
     timerEl.textContent = (timeLeft>0?timeLeft:0) + 's';
     if (timeLeft <= 0) {
       clearInterval(roundTimer);
-      // host handles reveal and advance
-      if (currentGame && currentGame.host_id === currentUser.id) {
-        await revealAndAdvance(null);
+      if (currentGame && currentUser && currentGame.host_id === currentUser.id) {
+        await revealAndAdvance(null); // Time's up, no winner
       }
     }
   }, 1000);
 }
 
-/* Player submits answer (text or via clicking choice) */
-submitAnswerBtn.addEventListener('click', submitAnswer);
 choicesEl.addEventListener('click', (e)=>{
   const btn = e.target.closest('.choice');
   if (!btn) return;
   const idx = Number(btn.dataset.index);
-  submitAnswerIndex(idx);
+  if (!currentUser || !currentGame) return;
+  broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerIndex: idx });
+  appendMessage('You', `chose option ${idx+1}`);
 });
 
-function submitAnswerIndex(index){
-  if (!currentGame) return alert('Join game first');
-  broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerIndex: index, ts: nowISO() });
-  appendMessage(myProfile.username, `chose option ${index+1}`);
-}
-
-async function submitAnswer(){
-  const typed = answerInput.value?.trim();
-  if (!typed) return;
-  // try to map typed to option index (exact match)
-  let idx = null;
-  const opts = Array.from(document.querySelectorAll('.choice')).map(c => c.textContent.trim().toLowerCase());
-  opts.forEach((o,i)=> { if (o === typed.toLowerCase()) idx = i; });
-  broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerText: typed, answerIndex: idx, ts: nowISO() });
-  appendMessage(myProfile.username, typed);
-  answerInput.value = '';
-}
-
-/* host evaluates incoming answer payloads: called by handleGameEvent when appropriate */
-async function evaluateAnswerFromRemote(payload){
-  if (!currentGame || currentGame.host_id !== currentUser.id) return;
-  if (roundLocked) return;
-  // find current question
-  const idx = currentGame.current_question_index - 1;
-  const qid = currentGame.question_ids?.[idx];
-  const { data: q } = await supabase.from('questions').select('*').eq('id', qid).maybeSingle();
-  if (!q) return;
-  const correctIndex = q.correct_answer_index;
-  const answerIndex = (payload.answerIndex != null) ? payload.answerIndex : null;
-  if (answerIndex != null && answerIndex === correctIndex) {
-    roundLocked = true;
-    // award point
-    const { data: p } = await supabase.from('players').select('*').eq('game_id', currentGame.id).eq('user_id', payload.user_id).maybeSingle();
-    if (p) {
-      await supabase.from('players').update({ score: (p.score||0)+1, last_correct_question_index: currentGame.current_question_index }).eq('id', p.id);
+submitAnswerBtn.addEventListener('click', () => {
+    const typed = answerInput.value?.trim().toLowerCase();
+    if (!typed || !currentUser || !currentGame) return;
+    const choices = Array.from(document.querySelectorAll('.choice')).map(c => c.textContent.trim().toLowerCase());
+    const idx = choices.indexOf(typed);
+    if (idx !== -1) {
+        broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerIndex: idx });
+        appendMessage('You', `answered: ${answerInput.value}`);
+        answerInput.value = '';
+    } else {
+        showSystem('Your typed answer did not match any choice.');
     }
-    const resPayload = { type:'round-result', winner_id: payload.user_id, winner_name: payload.username, correct: q.options?.[correctIndex] || '' };
-    broadcast(resPayload);
-    showSystem(`${payload.username} answered correctly!`);
+});
+
+async function evaluateAnswerFromRemote(payload){
+  if (!currentGame || roundLocked) return;
+  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
+  if (!qid) return;
+  const { data: q } = await supabase.from('questions').select('correct_answer_index, options').eq('id', qid).single();
+  if (!q) return;
+
+  if (payload.answerIndex === q.correct_answer_index) {
+    roundLocked = true;
     clearInterval(roundTimer);
+    const { data: p } = await supabase.from('players').select('score').eq('game_id', currentGame.id).eq('user_id', payload.user_id).single();
+    if (p) {
+      await supabase.from('players').update({ score: (p.score||0)+1 }).eq('game_id', currentGame.id).eq('user_id', payload.user_id);
+    }
     await revealAndAdvance(payload);
   } else {
     appendMessage('System', `${payload.username} answered incorrectly.`);
   }
 }
 
-/* Reveal & advance (host) */
 async function revealAndAdvance(winnerPayload){
-  // reveal correct answer
-  const idx = currentGame.current_question_index - 1;
-  const qid = currentGame.question_ids?.[idx];
-  const { data: q } = await supabase.from('questions').select('*').eq('id', qid).maybeSingle();
+  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
+  if (!qid) return;
+  const { data: q } = await supabase.from('questions').select('correct_answer_index, options').eq('id', qid).single();
   const correctText = q ? (q.options?.[q.correct_answer_index] || '—') : '—';
-  broadcast({ type:'round-result', winner_id: winnerPayload?.user_id || null, winner_name: winnerPayload?.username || null, correct: correctText });
-  showSystem(`Correct: ${correctText}${winnerPayload?(' — Winner: '+winnerPayload.username):''}`);
-  // elimination check
-  if (currentGame.settings?.eliminate_after && currentGame.current_question_index >= currentGame.settings.eliminate_after) {
+  
+  const resultPayload = { type:'round-result', winner_id: winnerPayload?.user_id || null, winner_name: winnerPayload?.username || null, correct_answer: correctText };
+  broadcast(resultPayload);
+  showRoundResult(resultPayload);
+
+  await sleep(4000); // Wait 4 seconds before next round
+
+  if (currentGame.settings?.eliminate_after > 0 && currentGame.current_question_index >= currentGame.settings.eliminate_after) {
     await maybeEliminate();
   }
-  await sleep(800);
-  // if reached total rounds finish
-  if (currentGame.settings && currentGame.current_question_index >= currentGame.settings.total_rounds) { await finishGame(); return; }
-  // next round
+  
   await nextRound();
 }
 
-/* maybe eliminate lowest (host) */
 async function maybeEliminate(){
-  const { data: players } = await supabase.from('players').select('*').eq('game_id', currentGame.id).is('is_eliminated', false);
-  if (!players || players.length <= 2) return;
+  const { data: players } = await supabase.from('players').select('*').eq('game_id', currentGame.id).eq('is_eliminated', false);
+  if (!players || players.length <= 1) return;
   players.sort((a,b) => (a.score||0) - (b.score||0));
   const toRemove = players[0];
-  await supabase.from('players').update({ is_eliminated: true }).eq('id', toRemove.id);
-  broadcast({ type:'player-eliminated', user_id: toRemove.user_id });
-  showSystem('A player was eliminated.');
-  await refreshPlayers();
+  if (toRemove) {
+    await supabase.from('players').update({ is_eliminated: true }).eq('id', toRemove.id);
+    broadcast({ type:'player-eliminated', user_id: toRemove.user_id });
+  }
 }
 
-/* finish game: compute winner and update profiles.games_won */
 async function finishGame(){
-  // compute winner
+  if (!currentGame) return;
   const { data: players } = await supabase.from('players').select('user_id,score').eq('game_id', currentGame.id);
-  if (players && players.length) {
+  if (players && players.length > 0) {
     players.sort((a,b) => (b.score||0) - (a.score||0));
     const winner = players[0];
     if (winner && winner.user_id) {
-      const { data: pr } = await supabase.from('profiles').select('*').eq('id', winner.user_id).maybeSingle();
-      if (pr) {
-        await supabase.from('profiles').update({ games_won: (pr.games_won||0)+1 }).eq('id', winner.user_id);
+      const { data: profile, error } = await supabase.from('profiles').select('games_won').eq('id', winner.user_id).single();
+      if (profile && !error) {
+        await supabase.from('profiles').update({ games_won: (profile.games_won||0)+1 }).eq('id', winner.user_id);
       }
     }
   }
@@ -773,35 +744,25 @@ async function finishGame(){
   showSystem('Game finished.');
 }
 
-/* show round result client side */
 function showRoundResult(payload){
-  showSystem(`Round result — correct: ${payload.correct}${payload.winner_name?(' | Winner: '+payload.winner_name):''}`);
-  // refresh players so scores update
+  const resultText = payload.winner_name 
+    ? `Winner: ${payload.winner_name}! Correct answer was: ${payload.correct_answer}`
+    : `Time's up! Correct answer was: ${payload.correct_answer}`;
+  questionTextEl.textContent = resultText;
+  choicesEl.innerHTML = '';
   refreshPlayers();
-}
-
-/* handle incoming generic 'game' action payloads for answers (non-host) */
-async function handleGameEvent(payload){
-  if (!payload) return;
-  if (payload.type === 'question') { showQuestion(payload); startTimer(payload.question_time || 10); }
-  else if (payload.type === 'round-result') showRoundResult(payload);
-  else if (payload.type === 'game-started') showSystem('Game started');
-  else if (payload.type === 'game-ended') showSystem('Game ended');
-  else if (payload.type === 'answer' && currentGame && currentGame.host_id === currentUser.id) {
-    // host evaluating remote answer — evaluate
-    await evaluateAnswerFromRemote(payload);
-  } else if (payload.type === 'answer') {
-    // non-host clients see other answers (simple notice)
-    appendMessage(payload.username || 'Player', 'submitted an answer');
-  }
 }
 
 /* ===========================
    Admin: add question UI
    =========================== */
-document.getElementById('admin-toggle-btn').addEventListener('click', ()=>{
-  adminPanel.style.display = adminPanel.style.display === 'none' ? 'block' : 'none';
+adminToggleBtn.addEventListener('click', () => {
+    adminPanel.style.display = adminPanel.style.display === 'none' ? 'block' : 'none';
 });
+toggleAdminBtn.addEventListener('click', () => {
+    adminPanel.style.display = 'none';
+});
+
 addQuestionBtn.addEventListener('click', async ()=>{
   if (!currentUser) return alert('Sign in first');
   const text = qText.value?.trim();
@@ -813,30 +774,21 @@ addQuestionBtn.addEventListener('click', async ()=>{
   alert('Question added.');
   qText.value = ''; opt0.value=''; opt1.value=''; opt2.value=''; opt3.value=''; correctIndex.value='0';
 });
+
 refreshQuestionsBtn.addEventListener('click', async ()=>{
-  const { data } = await supabase.from('questions').select('id');
-  alert('Total questions: ' + (data?.length || 0));
+  const { count, error } = await supabase.from('questions').select('id', { count: 'exact', head: true });
+  if (error) return alert('Could not fetch count.');
+  alert('Total questions: ' + (count || 0));
 });
 
-/* ===========================
-   Broadcast helper receives answer events so host can evaluate
-   =========================== */
-function handleActionEvent(payload){
-  // route to evaluation if necessary (host)
-  if (!payload) return;
-  if (payload.type === 'answer') {
-    if (currentGame && currentGame.host_id === currentUser.id) evaluateAnswerFromRemote(payload);
-  }
-}
+// FIX 3: Removed the second, incorrect `handleGameEvent` function and the unused `handleActionEvent` function.
 
 /* ===========================
    Utilities & startup
    =========================== */
 function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
 function showSystem(txt){ appendMessage('System', txt); }
-function nowISO(){ return new Date().toISOString() }
 
-/* init */
 (async function main(){
   adminPanel.style.display = 'none';
   await initAuth();
