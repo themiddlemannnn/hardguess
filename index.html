@@ -647,15 +647,20 @@
         }
 
         async function updateLobbyPlayers() {
-            const { data: players } = await supabase
+            const { data: players, error } = await supabase
                 .from('players')
                 .select('*, profiles(username, avatar_url)')
                 .eq('game_id', currentGame.id);
 
-            currentPlayers = players;
+            if (error) {
+                console.error('Error loading players:', error);
+                return;
+            }
+
+            currentPlayers = players || [];
 
             const container = document.getElementById('lobbyPlayers');
-            container.innerHTML = players.map(p => `
+            container.innerHTML = (players || []).map(p => `
                 <div class="player-card ${p.user_id === currentUser.id ? 'me' : ''}">
                     <img src="${p.profiles.avatar_url || 'https://via.placeholder.com/60'}" alt="Avatar">
                     <div>${p.profiles.username}</div>
