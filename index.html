@@ -776,7 +776,7 @@
                 const { data: player } = await supabase
                     .from('players')
                     .select('*')
-                    .eq('game_id', String(currentGame.id));
+                    .eq('game_id', currentGame.id)
                     .eq('user_id', currentUser.id)
                     .maybeSingle();
 
