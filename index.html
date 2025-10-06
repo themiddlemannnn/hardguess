@@ -205,26 +205,31 @@
 
   <!-- ✅ FIXED: Supabase + Google callback in correct order -->
   <script>
-    // ✅ 1. Initialize Supabase FIRST
-    const supabaseUrl = 'https://kldsmwvljwnosjmvehoq.supabase.co';
-    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZHNtd3Zsandub3NqbXZlaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTA3MDYsImV4cCI6MjA3NTE4NjcwNn0.MR28bfvXNmg6RRKFXNxyO2abJVIvgkNoZ7Baib-AOEQ';
-    const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+  // ✅ 1. Define the Google callback FIRST, as a global function
+  window.handleCredentialResponse = null;
+</script>
 
-    // ✅ 2. Now define the Google callback
-    window.handleCredentialResponse = async (response) => {
-      try {
-        const { data, error } = await supabase.auth.signInWithIdToken({
-          provider: 'google',
-          token: response.credential
-        });
-        if (error) throw error;
-        // Refresh to show app
-        window.location.reload();
-      } catch (err) {
-        console.error('Login failed:', err);
-        alert('Login failed. Please try again.');
-      }
-    };
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script>
+  // ✅ 2. Initialize Supabase
+  const supabaseUrl = 'https://kldsmwvljwnosjmvehoq.supabase.co';
+  const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZHNtd3Zsandub3NqbXZlaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTA3MDYsImV4cCI6MjA3NTE4NjcwNn0.MR28bfvXNmg6RRKFXNxyO2abJVIvgkNoZ7Baib-AOEQ';
+  const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+  // ✅ 3. NOW assign the actual function to the global callback
+  window.handleCredentialResponse = async (response) => {
+    try {
+      const { error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential
+      });
+      if (error) throw error;
+      window.location.reload(); // Refresh to enter app
+    } catch (err) {
+      console.error('Login failed:', err);
+      alert('Login failed. Please try again.');
+    }
+  };
 
     // Global state
     let currentUser = null;
