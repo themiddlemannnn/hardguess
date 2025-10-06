@@ -585,12 +585,19 @@
                 return;
             }
 
-            const { data: existingPlayers } = await supabase
+            const { data: existingPlayers, error: playersError } = await supabase
                 .from('players')
                 .select('*')
                 .eq('game_id', game.id);
 
-            if (existingPlayers.length >= 4) {
+            if (playersError) {
+                console.error('Error checking players:', playersError);
+                document.getElementById('joinError').textContent = 'Error joining game';
+                document.getElementById('joinError').style.display = 'block';
+                return;
+            }
+
+            if (existingPlayers && existingPlayers.length >= 4) {
                 document.getElementById('joinError').textContent = 'Game is full';
                 document.getElementById('joinError').style.display = 'block';
                 return;
