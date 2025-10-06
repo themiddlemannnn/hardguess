@@ -587,18 +587,21 @@
 
             const { data: existingPlayers, error: playersError } = await supabase
                 .from('players')
-                .select('*')
+                .select('id')
                 .eq('game_id', game.id);
 
             if (playersError) {
                 console.error('Error checking players:', playersError);
-                document.getElementById('joinError').textContent = 'Error joining game';
+                console.error('Game ID:', game.id);
+                console.error('Game ID type:', typeof game.id);
+                document.getElementById('joinError').textContent = `Error: ${playersError.message || 'Unable to check game capacity'}`;
                 document.getElementById('joinError').style.display = 'block';
                 return;
             }
 
-            if (existingPlayers && existingPlayers.length >= 4) {
-                document.getElementById('joinError').textContent = 'Game is full';
+            const playerCount = existingPlayers ? existingPlayers.length : 0;
+            if (playerCount >= 4) {
+                document.getElementById('joinError').textContent = 'Game is full (maximum 4 players)';
                 document.getElementById('joinError').style.display = 'block';
                 return;
             }
