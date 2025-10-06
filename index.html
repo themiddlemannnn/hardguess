@@ -476,11 +476,12 @@
                 const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                        redirectTo: 'https://themiddlemannnn.github.io/hardguess/'
+                        redirectTo: window.location.origin + window.location.pathname
                     }
                 });
                 if (error) throw error;
             } catch (error) {
+                console.error('Sign in error:', error);
                 document.getElementById('loginError').textContent = error.message;
                 document.getElementById('loginError').style.display = 'block';
             }
@@ -493,24 +494,33 @@
         }
 
         async function loadUserProfile() {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', currentUser.id)
-                .single();
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', currentUser.id)
+                    .maybeSingle();
 
-            if (error && error.code === 'PGRST116') {
-                await supabase.from('profiles').insert({
-                    id: currentUser.id,
-                    username: currentUser.email.split('@')[0],
-                    games_won: 0,
-                    avatar_url: currentUser.user_metadata.avatar_url || 'https://via.placeholder.com/100'
-                });
-                await loadUserProfile();
-            } else if (data) {
-                document.getElementById('userName').textContent = data.username;
-                document.getElementById('gamesWon').textContent = data.games_won;
+                if (!data) {
+                    // Create profile if doesn't exist
+                    const { error: insertError } = await supabase.from('profiles').insert({
+                        id: currentUser.id,
+                        username: currentUser.email?.split('@')[0] || currentUser.user_metadata?.full_name || 'Player',
+                        games_won: 0,
+                        avatar_url: currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || 'https://via.placeholder.com/100'
+                    });
+                    
+                    if (!insertError) {
+                        await loadUserProfile();
+                    }
+                    return;
+                }
+
+                document.getElementById('userName').textContent = data.username || 'Player';
+                document.getElementById('gamesWon').textContent = data.games_won || 0;
                 document.getElementById('userAvatar').src = data.avatar_url || 'https://via.placeholder.com/100';
+            } catch (err) {
+                console.error('Profile load error:', err);
             }
         }
 
@@ -541,7 +551,7 @@
                     timePerQuestion,
                     questionsBeforeElimination
                 }
-            }).select().single();
+            }).select().maybeSingle();
 
             if (error) {
                 alert('Error creating game: ' + error.message);
@@ -567,7 +577,7 @@
                 .select('*')
                 .eq('game_code', code)
                 .eq('status', 'waiting')
-                .single();
+                .maybeSingle();
 
             if (error || !game) {
                 document.getElementById('joinError').textContent = 'Game not found or already started';
@@ -688,7 +698,7 @@
                 .from('games')
                 .select('*')
                 .eq('id', currentGame.id)
-                .single();
+                .maybeSingle();
 
             currentGame = game;
 
@@ -703,7 +713,7 @@
                 .from('questions')
                 .select('*')
                 .eq('id', questionId)
-                .single();
+                .maybeSingle();
 
             currentQuestion = question;
 
@@ -753,9 +763,9 @@
                     .select('*')
                     .eq('game_id', currentGame.id)
                     .eq('user_id', currentUser.id)
-                    .single();
+                    .maybeSingle();
 
-                if (player.last_correct_question_index < currentGame.current_question_index) {
+                if (player && player.last_correct_question_index < currentGame.current_question_index) {
                     await supabase
                         .from('players')
                         .update({ 
@@ -845,7 +855,7 @@
                 .eq('game_id', currentGame.id)
                 .order('score', { ascending: false });
 
-            if (players.length > 0) {
+            if (players && players.length > 0) {
                 const winner = players[0];
                 document.getElementById('winnerBanner').textContent = `🏆 ${winner.profiles.username} Wins! 🏆`;
                 document.getElementById('winnerBanner').style.display = 'block';
@@ -855,12 +865,14 @@
                         .from('profiles')
                         .select('games_won')
                         .eq('id', currentUser.id)
-                        .single();
+                        .maybeSingle();
 
-                    await supabase
-                        .from('profiles')
-                        .update({ games_won: profile.games_won + 1 })
-                        .eq('id', currentUser.id);
+                    if (profile) {
+                        await supabase
+                            .from('profiles')
+                            .update({ games_won: (profile.games_won || 0) + 1 })
+                            .eq('id', currentUser.id);
+                    }
                 }
             }
 
@@ -897,7 +909,7 @@
                 .from('profiles')
                 .select('username')
                 .eq('id', payload.new.user_id)
-                .single();
+                .maybeSingle();
 
             const chatContainer = document.querySelector('.screen.active').id === 'lobbyScreen'
                 ? document.getElementById('lobbyChat')
@@ -905,7 +917,7 @@
 
             const messageDiv = document.createElement('div');
             messageDiv.className = 'chat-message';
-            messageDiv.innerHTML = `<strong>${profile.username}:</strong> ${payload.new.message}`;
+            messageDiv.innerHTML = `<strong>${profile?.username || 'Player'}:</strong> ${payload.new.message}`;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
