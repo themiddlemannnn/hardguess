@@ -1,799 +1,599 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>HardGuess — Multiplayer Trivia</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HardGuess - Multiplayer Trivia</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
-    :root{
-      --bg:#eef8ff; --card-grad:linear-gradient(180deg,#2f99ff,#2a85e0);
-      --muted:#6b899f; --accent:#4ade80; --danger:#ff6b6b;
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #818cf8;
+      --secondary: #10b981;
+      --dark: #1e293b;
+      --light: #f8fafc;
+      --gray: #94a3b8;
+      --danger: #ef4444;
     }
-    *{box-sizing:border-box}
-    body{font-family:Inter,system-ui,Arial;margin:18px;background:var(--bg);color:#05202b}
-    .wrap{max-width:1100px;margin:0 auto}
-    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-    h1{margin:0;font-size:20px}
-    .top-controls{display:flex;gap:8px;align-items:center}
-    button{background:white;border:0;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
-    .card{background:var(--card-grad);color:white;border-radius:14px;padding:16px;box-shadow:0 12px 30px rgba(25,60,110,.08)}
-    .grid{display:grid;grid-template-columns:1fr 380px;gap:16px;margin-top:14px}
-    .panel{background:rgba(255,255,255,0.95);padding:12px;border-radius:12px}
-    .lobby{padding:12px;border-radius:12px;background:#f6fbff}
-    .players{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}
-    .player{width:84px;text-align:center}
-    .avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:4px solid white;box-shadow:0 6px 12px rgba(0,0,0,.06)}
-    .avatar.highlight{box-shadow:0 0 18px 6px rgba(74,222,128,.25)} /* green glow on local device */
-    .muted{color:var(--muted);font-size:13px}
-    .question-card{background:var(--card-grad);padding:18px;border-radius:12px;color:white}
-    .question-text{font-size:20px;font-weight:700}
-    .choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .choice{background:rgba(255,255,255,0.12);padding:12px;border-radius:8px;cursor:pointer;font-weight:600;text-align:center}
-    .choices .choice:hover{transform:translateY(-3px);transition:all .12s}
-    .chat{display:flex;flex-direction:column;height:420px}
-    .messages{flex:1;overflow:auto;padding:8px;background:#fff;border-radius:8px}
-    .msg{padding:8px;border-radius:8px;margin-bottom:8px;background:#f1f7ff}
-    .input-row{display:flex;gap:8px;margin-top:8px}
-    input[type=text], textarea{flex:1;padding:8px;border-radius:8px;border:1px solid #e6f3ff}
-    .admin-panel{margin-top:12px}
-    @media (max-width:980px){
-      .grid{grid-template-columns:1fr}
-      .chat{height:300px}
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body {
+      background: linear-gradient(135deg, #1e1b4b, #312e81);
+      color: var(--light);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    .screen { display: none; }
+    .active { display: block; }
+    .btn {
+      padding: 12px 24px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      background: var(--primary); color: white;
+    }
+    .btn:hover { background: var(--primary-light); }
+    .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary-light); }
+    .btn-danger { background: var(--danger); }
+    .card {
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px;
+      margin: 16px 0;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    }
+    h1, h2, h3 { margin-bottom: 16px; }
+    h1 { font-size: 2.5rem; text-align: center; background: linear-gradient(to right, var(--secondary), var(--primary-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .avatar { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gray); }
+    .avatar.local { box-shadow: 0 0 0 4px var(--secondary); }
+    .players { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+    .player-card {
+      background: rgba(15, 23, 42, 0.7);
+      padding: 12px; border-radius: 12px; text-align: center; flex: 1; min-width: 120px;
+    }
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 24px 0; }
+    .option-btn {
+      padding: 16px; background: var(--dark); border: 2px solid var(--gray); border-radius: 12px; color: white; cursor: pointer; text-align: left;
+    }
+    .option-btn:hover { border-color: var(--primary-light); }
+    .option-btn.correct { border-color: var(--secondary); background: rgba(16, 185, 129, 0.2); }
+    .option-btn.incorrect { border-color: var(--danger); background: rgba(239, 68, 68, 0.2); }
+    .chat-box {
+      height: 200px; overflow-y: auto; border: 1px solid var(--gray); border-radius: 8px; padding: 12px; margin: 16px 0;
+      display: flex; flex-direction: column-reverse;
+    }
+    .chat-message { margin-bottom: 8px; }
+    .timer { font-size: 1.5rem; color: var(--secondary); font-weight: bold; text-align: center; margin: 16px 0; }
+    .code-display { font-size: 2rem; font-weight: bold; letter-spacing: 8px; text-align: center; margin: 16px 0; color: var(--primary-light); }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--gray); }
+    input, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--gray); background: var(--dark); color: white; }
+    .hidden { display: none; }
+    .winner { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
     }
   </style>
-
-  <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>HardGuess — Multiplayer Trivia</h1>
-        <div class="muted">Host sets time & elimination. First correct answer wins the round.</div>
-      </div>
-      <div class="top-controls">
-        <div id="user-area" class="muted">Not signed in</div>
-        <button id="auth-btn">Sign in (Google)</button>
-      </div>
-    </header>
-
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-size:20px;font-weight:700">Room</div>
-        <div style="text-align:right">
-          <div class="muted">Room code: <strong id="room-code">—</strong></div>
+  <div class="container">
+    <!-- Login Screen -->
+    <div id="login-screen" class="screen active">
+      <div class="card">
+        <h1>HardGuess</h1>
+        <p>Log in with Google to start playing with your friends!</p>
+        <div id="g_id_onload"
+             data-client_id="29889911756-eq601p0tlo2turb1amcjbcbpnersi9c4.apps.googleusercontent.com"
+             data-callback="handleCredentialResponse"
+             data-auto_prompt="false">
         </div>
-      </div>
-
-      <div class="grid" style="margin-top:12px">
-        <!-- Left column: main game -->
-        <div>
-          <div id="question-card" class="question-card">
-            <div id="question-text" class="question-text">Create or join a game to start</div>
-            <div id="choices" class="choices"></div>
-            <div style="display:flex;gap:12px;margin-top:12px;align-items:center">
-              <div class="muted">Time left: <span id="timer">--</span></div>
-              <div class="muted">Round: <span id="round">0</span></div>
-              <div class="muted">Players: <span id="players-count">0</span></div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-            <input id="answer-input" type="text" placeholder="Type answer or click a choice" />
-            <button id="submit-answer">Submit</button>
-            <button id="buzz-btn" style="display:none">Buzz</button> <!-- Hiding unused Buzz button -->
-          </div>
-
-          <div id="host-controls" style="display:flex;gap:8px;align-items:center;margin-top:12px">
-            <button id="create-game">Create Game</button>
-            <button id="start-game" style="display:none">Start</button>
-            <button id="end-game" style="display:none;background:#ff6b6b;color:white">End</button>
-
-            <label class="muted">Time:
-              <select id="question-time">
-                <option value="5">5s</option>
-                <option value="8">8s</option>
-                <option value="10" selected>10s</option>
-                <option value="15">15s</option>
-              </select>
-            </label>
-
-            <label class="muted">Eliminate after:
-              <select id="eliminate-after">
-                <option value="0">Disabled</option>
-                <option value="3">3</option>
-                <option value="5" selected>5</option>
-                <option value="10">10</option>
-              </select>
-            </label>
-
-            <label class="muted">Rounds:
-              <input id="total-rounds" type="number" min="1" max="100" value="10" style="width:72px">
-            </label>
-          </div>
-
-          <div class="lobby" style="margin-top:12px">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div><strong>Lobby</strong> <span class="muted">share this code</span></div>
-              <div class="muted">Status: <strong id="room-status">—</strong></div>
-            </div>
-
-            <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-              <input id="join-code-input" placeholder="Enter 6-digit code" />
-              <button id="join-game">Join</button>
-            </div>
-
-            <div class="players" id="players-list"></div>
-          </div>
-
-          <!-- Admin panel -->
-          <div class="admin-panel panel" id="admin-panel" style="display:none">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div style="font-weight:700">Admin: Add question</div>
-              <div class="muted">Questions saved to Supabase</div>
-            </div>
-
-            <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
-              <input id="q-text" placeholder="Question text" />
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-                <input id="opt-0" placeholder="Option 1" />
-                <input id="opt-1" placeholder="Option 2" />
-                <input id="opt-2" placeholder="Option 3" />
-                <input id="opt-3" placeholder="Option 4" />
-              </div>
-              <label class="muted">Correct option:
-                <select id="correct-index">
-                  <option value="0">1</option>
-                  <option value="1">2</option>
-                  <option value="2">3</option>
-                  <option value="3">4</option>
-                </select>
-              </label>
-              <div style="display:flex;gap:8px">
-                <button id="add-question">Add question</button>
-                <button id="refresh-questions">Questions count</button>
-                <button id="toggle-admin">Close Admin</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right column: chat & profile -->
-        <div>
-          <div class="panel chat">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div style="font-weight:700">Chat</div>
-              <div class="muted small">Players chat</div>
-            </div>
-
-            <div id="messages" class="messages"></div>
-
-            <div class="input-row">
-              <input id="chat-text" placeholder="Say something..." />
-              <button id="send-chat">Send</button>
-            </div>
-
-            <div style="display:flex;gap:8px;align-items:center;margin-top:10px">
-              <div>
-                <div class="muted small">Your avatar</div>
-                <img id="my-avatar" class="avatar" src="" alt="avatar">
-              </div>
-              <div style="flex:1">
-                <div class="muted small">Username</div>
-                <div id="my-username" style="font-weight:700">Not signed in</div>
-                <div class="muted small">Wins: <span id="my-wins">0</span></div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-                <input id="avatar-file" type="file" accept="image/*" style="display:none" />
-                <button id="upload-avatar">Upload Avatar</button>
-                <button id="admin-toggle-btn">Open Admin</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="panel" style="margin-top:12px">
-            <strong>Instructions</strong>
-            <div class="muted small" style="margin-top:8px">
-              - Host creates a game and shares the 6-digit code. <br>
-              - Up to 4 players can join. <br>
-              - Host configures time & elimination. <br>
-              - Use Admin to add questions from the UI. <br>
-              - Avatars are stored in your Supabase `avatars` bucket.
-            </div>
-          </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-size="large"
+             data-theme="outline"
+             data-text="sign_in_with"
+             data-shape="rectangular"
+             data-logo_alignment="left">
         </div>
       </div>
     </div>
 
-    <footer style="margin-top:14px;text-align:center" class="muted">Hosted on GitHub Pages • Supabase backend</footer>
+    <!-- Lobby Screen -->
+    <div id="lobby-screen" class="screen">
+      <div class="card">
+        <h2>Welcome, <span id="username-display">Player</span>!</h2>
+        <button id="create-game-btn" class="btn">Create Game</button>
+        <button id="join-game-btn" class="btn btn-outline">Join Game</button>
+        <button id="leaderboard-btn" class="btn btn-outline">Leaderboard</button>
+        <button id="settings-btn" class="btn btn-outline">Settings</button>
+      </div>
+    </div>
+
+    <!-- Join Game Screen -->
+    <div id="join-screen" class="screen">
+      <div class="card">
+        <h2>Join a Game</h2>
+        <input type="text" id="game-code-input" placeholder="Enter 6-digit code" maxlength="6" />
+        <button id="join-submit-btn" class="btn">Join</button>
+        <button id="back-to-lobby-join" class="btn btn-outline">Back</button>
+      </div>
+    </div>
+
+    <!-- Create Game Screen -->
+    <div id="create-screen" class="screen">
+      <div class="card">
+        <h2>Create a Game</h2>
+        <label>Seconds per question: <input type="number" id="time-per-question" value="10" min="5" max="60" /></label>
+        <label>Eliminate after how many questions? (0 for no elimination): <input type="number" id="elim-after" value="5" min="0" max="20" /></label>
+        <button id="create-submit-btn" class="btn">Create & Share Code</button>
+        <button id="back-to-lobby-create" class="btn btn-outline">Back</button>
+      </div>
+    </div>
+
+    <!-- Waiting Room Screen -->
+    <div id="waiting-screen" class="screen">
+      <div class="card">
+        <h2>Waiting for Players...</h2>
+        <p>Share this code with your friends:</p>
+        <div id="game-code-display" class="code-display">------</div>
+        <div id="players-list-waiting" class="players"></div>
+        <button id="start-game-btn" class="btn hidden">Start Game</button>
+        <button id="leave-game-btn" class="btn btn-outline">Leave</button>
+      </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="game-screen" class="screen">
+      <div class="card">
+        <div class="timer" id="timer-display">10s</div>
+        <h2 id="question-text">Loading question...</h2>
+        <div id="options-container" class="options"></div>
+        <div class="players" id="players-list-game"></div>
+      </div>
+      <div class="card">
+        <h3>Chat</h3>
+        <div id="chat-box" class="chat-box"></div>
+        <input type="text" id="chat-input" placeholder="Type a message..." maxlength="100" />
+        <button id="send-chat-btn" class="btn btn-outline">Send</button>
+      </div>
+    </div>
+
+    <!-- Results Screen -->
+    <div id="results-screen" class="screen">
+      <div class="card">
+        <h1 id="winner-message" class="winner">Player Wins!</h1>
+        <h2>Final Scores</h2>
+        <div id="final-scores-list" class="players"></div>
+        <button id="play-again-btn" class="btn">Play Again</button>
+        <button id="back-to-lobby-results" class="btn btn-outline">Back to Lobby</button>
+      </div>
+    </div>
+
+    <!-- Leaderboard Screen -->
+    <div id="leaderboard-screen" class="screen">
+      <div class="card">
+        <h2>Leaderboard</h2>
+        <p>(Top 5 players by wins)</p>
+        <table>
+          <thead>
+            <tr><th>Rank</th><th>Player</th><th>Wins</th></tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr><td colspan="3">Loading...</td></tr>
+          </tbody>
+        </table>
+        <button id="back-to-lobby-lb" class="btn btn-outline">Back</button>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="screen">
+      <div class="card">
+        <h2>Settings</h2>
+        <h3>Change Avatar</h3>
+        <input type="file" id="avatar-upload" accept="image/*" />
+        <img id="current-avatar" class="avatar" src="" alt="Your avatar" />
+        <h3>Game Rules</h3>
+        <ul>
+          <li>Host creates a game and shares the 6-digit code.</li>
+          <li>Up to 4 players can join.</li>
+          <li>Host configures time & elimination.</li>
+          <li>Use Admin to add questions from the UI.</li>
+          <li>Avatars are stored in your Supabase <code>avatars</code> bucket.</li>
+        </ul>
+        <button id="close-settings-btn" class="btn">Close</button>
+      </div>
+    </div>
   </div>
 
-<script>
-/* ===========================
-   CONFIG - YOUR PROJECT INFO
-   =========================== */
-const SUPABASE_URL = "https://kldsmwvljwnosjmvehoq.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZHNtd3Zsandub3NqbXZlaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTA3MDYsImV4cCI6MjA3NTE4NjcwNn0.MR28bfvXNmg6RRKFXNxyO2abJVIvgkNoZ7Baib-AOEQ";
-// FIX 1: The redirect URL must be the page itself for the client-side auth flow to work.
-const OAUTH_REDIRECT = window.location.href;
-const AVATAR_BUCKET = "avatars";
+  <script>
+    // Supabase Client
+    const supabaseUrl = 'https://kldsmwvljwnosjmvehoq.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtsZHNtd3Zsandub3NqbXZlaG9xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MTA3MDYsImV4cCI6MjA3NTE4NjcwNn0.MR28bfvXNmg6RRKFXNxyO2abJVIvgkNoZ7Baib-AOEQ';
+    const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
 
-/* ===========================
-   INIT Supabase client
-   =========================== */
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, { auth: { persistSession: true } });
+    // Global State
+    let currentUser = null;
+    let currentGame = null;
+    let currentChannel = null;
+    let timerInterval = null;
 
-/* ===========================
-   App state
-   =========================== */
-let currentUser = null;
-let myProfile = { id: null, username: 'Guest', avatar_url: null, games_won: 0 };
-let currentGame = null; // row from games table
-let localPlayers = [];   // list of players (from players + profiles)
-let channel = null;      // realtime channel (per game)
-let roundTimer = null;
-let timeLeft = 0;
-let roundLocked = false; // prevents multiple awarded winners for same round
+    // DOM Elements
+    const screens = {
+      login: document.getElementById('login-screen'),
+      lobby: document.getElementById('lobby-screen'),
+      join: document.getElementById('join-screen'),
+      create: document.getElementById('create-screen'),
+      waiting: document.getElementById('waiting-screen'),
+      game: document.getElementById('game-screen'),
+      results: document.getElementById('results-screen'),
+      leaderboard: document.getElementById('leaderboard-screen'),
+      settings: document.getElementById('settings-modal')
+    };
 
-/* ===========================
-   DOM refs
-   =========================== */
-const authBtn = document.getElementById('auth-btn');
-const userArea = document.getElementById('user-area');
-const createGameBtn = document.getElementById('create-game');
-const joinGameBtn = document.getElementById('join-game');
-const startGameBtn = document.getElementById('start-game');
-const endGameBtn = document.getElementById('end-game');
-const joinCodeInput = document.getElementById('join-code-input');
-const roomCodeEl = document.getElementById('room-code');
-const playersListEl = document.getElementById('players-list');
-const messagesEl = document.getElementById('messages');
-const chatInput = document.getElementById('chat-text');
-const sendChatBtn = document.getElementById('send-chat');
-const myAvatarImg = document.getElementById('my-avatar');
-const myUsernameEl = document.getElementById('my-username');
-const uploadAvatarBtn = document.getElementById('upload-avatar');
-const avatarFileInput = document.getElementById('avatar-file');
-const adminPanel = document.getElementById('admin-panel');
-const adminToggleBtn = document.getElementById('admin-toggle-btn');
-const addQuestionBtn = document.getElementById('add-question');
-const refreshQuestionsBtn = document.getElementById('refresh-questions');
-const qText = document.getElementById('q-text');
-const opt0 = document.getElementById('opt-0');
-const opt1 = document.getElementById('opt-1');
-const opt2 = document.getElementById('opt-2');
-const opt3 = document.getElementById('opt-3');
-const correctIndex = document.getElementById('correct-index');
-const toggleAdminBtn = document.getElementById('toggle-admin');
-
-const questionTextEl = document.getElementById('question-text');
-const choicesEl = document.getElementById('choices');
-const timerEl = document.getElementById('timer');
-const roundEl = document.getElementById('round');
-const playersCountEl = document.getElementById('players-count');
-const submitAnswerBtn = document.getElementById('submit-answer');
-const answerInput = document.getElementById('answer-input');
-
-const questionTimeSelect = document.getElementById('question-time');
-const eliminateAfterSelect = document.getElementById('eliminate-after');
-const totalRoundsInput = document.getElementById('total-rounds');
-
-const roomStatusEl = document.getElementById('room-status');
-
-/* ===========================
-   Helpers
-   =========================== */
-function nowISO(){ return new Date().toISOString() }
-function uid(){ return Math.random().toString(36).slice(2,9) }
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) }
-function defaultAvatar(name='G'){ const initials = (name||'G').split(' ').map(x=>x[0]||'').slice(0,2).join('').toUpperCase(); return `https://dummyimage.com/128x128/1f8ef5/ffffff.png&text=${initials}` }
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)) }
-function log(...a){ console.log('[HG]',...a) }
-
-/* ===========================
-   Auth handling
-   =========================== */
-async function initAuth(){
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.user) await setUser(session.user);
-  else updateSignedOutUI();
-
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN' && session?.user) setUser(session.user);
-    if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      myProfile = { id:null, username:'Guest', avatar_url:null, games_won:0 };
-      updateSignedOutUI();
+    function showScreen(screenName) {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[screenName].classList.add('active');
     }
-  });
-}
 
-async function setUser(user){
-  currentUser = user;
-  const name = user.user_metadata?.full_name || user.email || 'Player';
-  const avatar = user.user_metadata?.avatar_url || null;
-  // upsert profile
-  try {
-    await supabase.from('profiles').upsert({ id: user.id, username: name, avatar_url: avatar }, { onConflict: 'id' });
-  } catch(e){ console.warn('profile upsert failed', e) }
-  // fetch profile row
-  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
-  if (profile) myProfile = { id: profile.id, username: profile.username || name, avatar_url: profile.avatar_url || avatar, games_won: profile.games_won || 0 };
-  else myProfile = { id: user.id, username: name, avatar_url: avatar, games_won: 0 };
-
-  userArea.textContent = myProfile.username;
-  authBtn.textContent = 'Sign out';
-  myUsernameEl.textContent = myProfile.username;
-  myAvatarImg.src = myProfile.avatar_url || defaultAvatar(myProfile.username);
-  document.getElementById('my-wins').textContent = myProfile.games_won || 0;
-}
-
-function updateSignedOutUI(){
-  userArea.textContent = 'Not signed in';
-  authBtn.textContent = 'Sign in (Google)';
-  myUsernameEl.textContent = 'Not signed in';
-  myAvatarImg.src = defaultAvatar('G');
-}
-
-authBtn.addEventListener('click', async ()=>{
-  if (!currentUser) {
-    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: OAUTH_REDIRECT } });
-  } else {
-    await supabase.auth.signOut();
-    location.reload();
-  }
-});
-
-/* ===========================
-   Avatar upload (Storage)
-   =========================== */
-uploadAvatarBtn.addEventListener('click', ()=> avatarFileInput.click());
-avatarFileInput.addEventListener('change', async (e)=>{
-  const f = e.target.files?.[0];
-  if (!f || !currentUser) return;
-  const ext = f.name.split('.').pop();
-  const filePath = `${myProfile.id}-${Date.now()}.${ext}`;
-  try {
-    const { error: uploadError } = await supabase.storage.from(AVATAR_BUCKET).upload(filePath, f, { upsert: true });
-    if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(filePath);
-    const publicUrl = data?.publicUrl;
-    if (publicUrl) {
-      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', myProfile.id);
-      myProfile.avatar_url = publicUrl;
-      myAvatarImg.src = publicUrl;
-      if (channel && currentGame) broadcast({ type:'player-profile-updated', user_id: myProfile.id, avatar_url: publicUrl, username: myProfile.username });
-      alert('Avatar uploaded.');
-    }
-  } catch(err){ console.error(err); alert('Upload failed: '+(err.message||err)); }
-});
-
-/* ===========================
-   Create / Join Game
-   =========================== */
-createGameBtn.addEventListener('click', createGame);
-joinGameBtn.addEventListener('click', joinGame);
-
-async function createGame(){
-  if (!currentUser) return alert('Sign in first');
-  let code;
-  for (let i=0;i<6;i++){
-    code = (Math.floor(Math.random()*900000)+100000).toString();
-    const { data } = await supabase.from('games').select('id').eq('game_code', code).maybeSingle();
-    if (!data) break;
-    if (i===5) code = Date.now().toString().slice(-6);
-  }
-  const settings = { question_time: Number(questionTimeSelect.value), eliminate_after: Number(eliminateAfterSelect.value), total_rounds: Number(totalRoundsInput.value) };
-  const payload = { game_code: code, host_id: currentUser.id, status: 'waiting', settings, is_active: true };
-  const { data: game, error } = await supabase.from('games').insert(payload).select('*').single();
-  if (error || !game) return alert('Could not create game: ' + (error?.message || 'unknown'));
-  currentGame = game;
-  roomCodeEl.textContent = game.game_code;
-  roomStatusEl.textContent = game.status || 'waiting';
-  await joinAsPlayer(game.id);
-  await setupChannel(game.id);
-  startGameBtn.style.display = 'inline-block';
-  endGameBtn.style.display = 'inline-block';
-  createGameBtn.disabled = true;
-  joinGameBtn.disabled = true;
-  showSystem('Game created — share code: ' + game.game_code);
-}
-
-async function joinGame(){
-  if (!currentUser) return alert('Sign in first');
-  const code = joinCodeInput.value?.trim();
-  if (!code) return alert('Enter code');
-  const { data: game } = await supabase.from('games').select('*').eq('game_code', code).maybeSingle();
-  if (!game) return alert('Game not found');
-  if (!game.is_active) return alert('Game not active');
-  currentGame = game;
-  roomCodeEl.textContent = game.game_code;
-  roomStatusEl.textContent = game.status || 'waiting';
-  await joinAsPlayer(game.id);
-  await setupChannel(game.id);
-  showSystem('Joined game ' + game.game_code);
-}
-
-async function joinAsPlayer(gameId){
-  if (!currentUser) return;
-  const { data: players } = await supabase.from('players').select('id', { count: 'exact' }).eq('game_id', gameId);
-  if (players && players.length >= 4) return alert('Room full (4 players).');
-
-  const { error } = await supabase.from('players').upsert({ game_id: gameId, user_id: currentUser.id }, { onConflict: 'game_id, user_id' });
-  if (error) console.warn('player upsert error', error);
-
-  broadcast({ type:'player-joined', user_id: myProfile.id, username: myProfile.username, avatar_url: myProfile.avatar_url });
-  await refreshPlayers();
-}
-
-/* ===========================
-   Realtime channel (one per game)
-   =========================== */
-async function setupChannel(gameId){
-  if (channel) {
-    try { await channel.unsubscribe(); } catch(e){}
-    channel = null;
-  }
-  const chName = `room-${gameId}`;
-  channel = supabase.channel(chName);
-
-  // FIX 2: Correctly handle incoming broadcast messages. The actual data is in `message.payload`.
-  channel.on('broadcast', { event: 'chat' }, (message) => {
-    if (message && message.payload) {
-      appendMessage(message.payload.username || 'Player', message.payload.text || message.payload.message || '');
-    }
-  });
-
-  channel.on('broadcast', { event: 'game' }, (message) => {
-    if (message && message.payload) {
-      handleGameEvent(message.payload);
-    }
-  });
-
-  channel.on('broadcast', { event: 'player' }, (message) => {
-    if (message && message.payload) {
-      handlePlayerEvent(message.payload);
-    }
-  });
-
-  await channel.subscribe((status) => {
-    if (status === 'SUBSCRIBED') {
-      showSystem('Realtime connected.');
-      refreshPlayers();
-      refreshMessages();
-    }
-  });
-}
-
-function broadcast(obj){
-  if (!channel) return;
-  let event = 'game';
-  if (obj.type === 'chat') event = 'chat';
-  else if (obj.type?.startsWith('player-')) event = 'player';
-  channel.send({ type: 'broadcast', event, payload: obj });
-}
-
-/* ===========================
-   Players & Chat refresh/render
-   =========================== */
-async function refreshPlayers(){
-  if (!currentGame) return;
-  const { data: players } = await supabase.from('players').select('*').eq('game_id', currentGame.id);
-  if (!players) { playersListEl.innerHTML = ''; playersCountEl.textContent = '0'; return; }
-  const ids = players.map(p=>p.user_id).filter(Boolean);
-  const { data: profiles } = ids.length ? await supabase.from('profiles').select('id,username,avatar_url').in('id', ids) : { data: [] };
-  const profMap = (profiles || []).reduce((acc,p)=> (acc[p.id]=p,acc), {});
-  localPlayers = players.map(p => {
-    const pr = profMap[p.user_id] || {};
-    return { ...p, username: pr.username || 'Player', avatar_url: pr.avatar_url || defaultAvatar(pr.username||'P') };
-  });
-  renderPlayers();
-}
-
-function renderPlayers(){
-  playersListEl.innerHTML = '';
-  localPlayers.sort((a,b) => b.score - a.score).forEach(p => {
-    const el = document.createElement('div');
-    el.className = 'player';
-    el.innerHTML = `<img src="${p.avatar_url}" class="avatar ${p.user_id === myProfile.id ? 'highlight' : ''}" />
-      <div style="font-weight:600; text-decoration: ${p.is_eliminated ? 'line-through' : 'none'}">${escapeHtml((p.username||'').split(' ')[0]||p.username)}</div>
-      <div class="muted">Score: ${p.score}</div>`;
-    playersListEl.appendChild(el);
-  });
-  playersCountEl.textContent = localPlayers.length;
-}
-
-async function refreshMessages(){
-  if (!currentGame) return;
-  const { data } = await supabase.from('chat_messages').select('user_id,message,created_at').eq('game_id', currentGame.id).order('created_at', { ascending: true }).limit(200);
-  messagesEl.innerHTML = '';
-  if (!data) return;
-  const ids = Array.from(new Set(data.map(m=>m.user_id).filter(Boolean)));
-  const { data: profiles } = ids.length ? await supabase.from('profiles').select('id,username').in('id', ids) : { data: [] };
-  const profMap = (profiles||[]).reduce((acc,p)=> (acc[p.id]=p,acc), {});
-  data.forEach(m => {
-    const p = profMap[m.user_id] || {};
-    appendMessage(p.username || 'Player', m.message);
-  });
-}
-
-function appendMessage(username, text){
-  const d = document.createElement('div');
-  d.className = 'msg';
-  d.innerHTML = `<strong>${escapeHtml(username)}:</strong> <div>${escapeHtml(text)}</div>`;
-  messagesEl.appendChild(d);
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-sendChatBtn.addEventListener('click', async ()=>{
-  const txt = chatInput.value?.trim();
-  if (!txt || !currentGame || !currentUser) return;
-  // Don't save to DB, just broadcast for ephemeral chat
-  broadcast({ type: 'chat', username: myProfile.username, user_id: myProfile.id, text: txt });
-  chatInput.value = '';
-});
-
-/* ===========================
-   Game events + host logic
-   =========================== */
-function handlePlayerEvent(payload){
-  if (!payload || !payload.type) return;
-  if (payload.type === 'player-joined') { showSystem(`${payload.username} joined`); refreshPlayers(); }
-  if (payload.type === 'player-left') { showSystem(`${payload.username} left`); refreshPlayers(); }
-  if (payload.type === 'player-profile-updated') { refreshPlayers(); }
-  if (payload.type === 'player-eliminated') { showSystem(`A player was eliminated.`); refreshPlayers(); }
-}
-
-async function handleGameEvent(payload){
-  if (!payload || !payload.type) return;
-  switch(payload.type){
-    case 'question':
-      showQuestion(payload);
-      startTimer(payload.question_time || 10);
-      break;
-    case 'round-result':
-      showRoundResult(payload);
-      break;
-    case 'game-started':
-      showSystem('Game started');
-      roomStatusEl.textContent = 'In Progress';
-      break;
-    case 'game-ended':
-      showSystem('Game ended. Thanks for playing!');
-      roomStatusEl.textContent = 'Ended';
-      if (roundTimer) clearInterval(roundTimer);
-      break;
-    case 'answer':
-      // Host evaluates remote answers
-      if (currentGame && currentUser && currentGame.host_id === currentUser.id) {
-        await evaluateAnswerFromRemote(payload);
-      } else {
-        // Non-host clients see a generic notice
-        appendMessage('System', `${payload.username} submitted an answer.`);
+    // Google Sign-In Handler
+    async function handleCredentialResponse(response) {
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: response.credential
+      });
+      if (error) {
+        console.error('Login error:', error);
+        return;
       }
-      break;
-    default:
-      log('Unknown game event', payload);
-  }
-}
+      currentUser = data.user;
+      // Ensure profile exists
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', currentUser.id)
+        .single();
 
-startGameBtn.addEventListener('click', async () => {
-  if (!currentGame || (currentUser && currentGame.host_id !== currentUser.id)) return alert('Only the host can start the game.');
-  const { data: rows, error: qError } = await supabase.from('questions').select('id');
-  if (qError || !rows || rows.length === 0) return alert('No questions found. Add some from the Admin panel first.');
-  const ids = rows.map(r=>r.id);
-  shuffle(ids);
-  const settings = { question_time: Number(questionTimeSelect.value), eliminate_after: Number(eliminateAfterSelect.value), total_rounds: Number(totalRoundsInput.value) };
-  const { error } = await supabase.from('games').update({ status: 'inprogress', question_ids: ids, current_question_index: 0, settings }).eq('id', currentGame.id);
-  if (error) { console.error('start game update error', error); return; }
-  currentGame.status = 'inprogress';
-  currentGame.question_ids = ids;
-  currentGame.current_question_index = 0;
-  currentGame.settings = settings;
-  broadcast({ type: 'game-started' });
-  await nextRound();
-});
+      if (!profile) {
+        await supabase.from('profiles').insert({
+          id: currentUser.id,
+          username: currentUser.user_metadata.full_name || currentUser.email.split('@')[0]
+        });
+      }
+      document.getElementById('username-display').textContent = profile?.username || currentUser.email.split('@')[0];
+      showScreen('lobby');
+    }
 
-endGameBtn.addEventListener('click', async ()=>{
-  if (!currentGame || !currentUser || currentGame.host_id !== currentUser.id) return;
-  await finishGame();
-});
+    // Utility: Generate 6-digit code
+    function generateGameCode() {
+      return Math.floor(100000 + Math.random() * 900000).toString(); // [[37]]
+    }
 
-async function nextRound(){
-  if (!currentGame) return;
-  currentGame.current_question_index = (currentGame.current_question_index || 0) + 1;
-  const totalRounds = currentGame.settings?.total_rounds || 10;
-  if (currentGame.current_question_index > totalRounds) {
-    await finishGame();
-    return;
-  }
-  await supabase.from('games').update({ current_question_index: currentGame.current_question_index }).eq('id', currentGame.id);
-  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
-  if (!qid) {
-    showSystem('No more questions available.');
-    await finishGame();
-    return;
-  }
-  const { data: q } = await supabase.from('questions').select('*').eq('id', qid).single();
-  if (!q) { showSystem('Question missing, skipping...'); await sleep(1000); await nextRound(); return; }
+    // Fetch and display leaderboard
+    async function loadLeaderboard() {
+      const { data, error } = await supabase
+        .from('high_scores')
+        .select('*')
+        .order('games_won', { ascending: false })
+        .limit(5);
 
-  const qpayload = { type:'question', id: q.id, question_text: q.question_text, options: q.options, index: currentGame.current_question_index, question_time: currentGame.settings?.question_time || 10 };
-  broadcast(qpayload);
-  showQuestion(qpayload); // Host also sees the question
-  roundLocked = false;
-}
+      const tbody = document.getElementById('leaderboard-body');
+      if (error || !data.length) {
+        tbody.innerHTML = `<tr><td colspan="3">No data yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = data.map((row, i) => 
+        `<tr><td>${i+1}</td><td>${row.username}</td><td>${row.games_won}</td></tr>`
+      ).join('');
+    }
 
-function showQuestion(q){
-  questionTextEl.textContent = q.question_text || '—';
-  choicesEl.innerHTML = '';
-  (q.options || []).forEach((opt,i) => {
-    const el = document.createElement('div');
-    el.className = 'choice';
-    el.dataset.index = i;
-    el.textContent = opt;
-    choicesEl.appendChild(el);
-  });
-  roundEl.textContent = q.index || (currentGame?.current_question_index || 0);
-}
+    // Avatar Upload
+    document.getElementById('avatar-upload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-function startTimer(seconds){
-  clearInterval(roundTimer);
-  timeLeft = seconds;
-  timerEl.textContent = timeLeft + 's';
-  roundTimer = setInterval(async ()=>{
-    timeLeft -= 1;
-    timerEl.textContent = (timeLeft>0?timeLeft:0) + 's';
-    if (timeLeft <= 0) {
-      clearInterval(roundTimer);
-      if (currentGame && currentUser && currentGame.host_id === currentUser.id) {
-        await revealAndAdvance(null); // Time's up, no winner
+      const { data, error } = await supabase.storage
+        .from('avatars')
+        .upload(`public/${currentUser.id}`, file, { upsert: true });
+
+      if (error) {
+        console.error('Upload error:', error);
+        return;
+      }
+
+      const { data: publicUrl } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(`public/${currentUser.id}`);
+
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl.publicUrl })
+        .eq('id', currentUser.id);
+
+      document.getElementById('current-avatar').src = publicUrl.publicUrl;
+    });
+
+    // Settings
+    document.getElementById('settings-btn').onclick = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', currentUser.id)
+        .single();
+      if (data?.avatar_url) {
+        document.getElementById('current-avatar').src = data.avatar_url;
+      }
+      showScreen('settings');
+    };
+    document.getElementById('close-settings-btn').onclick = () => showScreen('lobby');
+
+    // Leaderboard
+    document.getElementById('leaderboard-btn').onclick = async () => {
+      await loadLeaderboard();
+      showScreen('leaderboard');
+    };
+    document.getElementById('back-to-lobby-lb').onclick = () => showScreen('lobby');
+
+    // Join Game Flow
+    document.getElementById('join-game-btn').onclick = () => showScreen('join');
+    document.getElementById('back-to-lobby-join').onclick = () => showScreen('lobby');
+    document.getElementById('join-submit-btn').onclick = async () => {
+      const code = document.getElementById('game-code-input').value.trim().toUpperCase();
+      if (!code) return;
+
+      const { data, error } = await supabase
+        .from('games')
+        .select('id, host_id, settings')
+        .eq('game_code', code)
+        .eq('status', 'waiting')
+        .single();
+
+      if (error || !data) {
+        alert('Invalid or expired game code.');
+        return;
+      }
+
+      // Join the game
+      const { error: joinError } = await supabase
+        .from('players')
+        .insert({ game_id: data.id, user_id: currentUser.id });
+
+      if (joinError) {
+        alert('Could not join game.');
+        return;
+      }
+
+      currentGame = { id: data.id, code, host_id: data.host_id, settings: data.settings };
+      document.getElementById('game-code-display').textContent = code;
+      showScreen('waiting');
+      subscribeToGame(data.id);
+    };
+
+    // Create Game Flow
+    document.getElementById('create-game-btn').onclick = () => showScreen('create');
+    document.getElementById('back-to-lobby-create').onclick = () => showScreen('lobby');
+    document.getElementById('create-submit-btn').onclick = async () => {
+      const timePerQ = document.getElementById('time-per-question').value;
+      const elimAfter = document.getElementById('elim-after').value;
+      const code = generateGameCode();
+
+      const { data, error } = await supabase
+        .from('games')
+        .insert({
+          game_code: code,
+          host_id: currentUser.id,
+          settings: { time_per_question: parseInt(timePerQ), eliminate_after: parseInt(elimAfter) }
+        })
+        .select()
+        .single();
+
+      if (error) {
+        alert('Failed to create game.');
+        return;
+      }
+
+      // Auto-join as host
+      await supabase.from('players').insert({ game_id: data.id, user_id: currentUser.id });
+      currentGame = { id: data.id, code, host_id: currentUser.id, settings: data.settings };
+      document.getElementById('game-code-display').textContent = code;
+      showScreen('waiting');
+      subscribeToGame(data.id);
+    };
+
+    // Waiting Room Logic
+    async function subscribeToGame(gameId) {
+      if (currentChannel) {
+        supabase.removeChannel(currentChannel);
+      }
+
+      currentChannel = supabase
+        .channel(`game-${gameId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'players',
+          filter: `game_id=eq.${gameId}`
+        }, (_) => updatePlayerList(gameId))
+        .on('postgres_changes', {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`
+        }, (payload) => {
+          if (payload.new.status === 'active') {
+            startGame(payload.new);
+          }
+        })
+        .subscribe();
+
+      await updatePlayerList(gameId);
+      const isHost = currentUser.id === currentGame.host_id;
+      document.getElementById('start-game-btn').classList.toggle('hidden', !isHost);
+    }
+
+    async function updatePlayerList(gameId) {
+      const { data } = await supabase
+        .from('players')
+        .select('user_id, score, is_eliminated')
+        .eq('game_id', gameId)
+        .order('created_at', { ascending: true });
+
+      const playerDivs = data.map(p => {
+        const isLocal = p.user_id === currentUser.id;
+        return `<div class="player-card">
+          <img src="${getAvatarUrl(p.user_id)}" class="avatar ${isLocal ? 'local' : ''}" />
+          <div>${getUsername(p.user_id)}</div>
+          <div>Score: ${p.score}</div>
+          ${p.is_eliminated ? '<div style="color:var(--danger)">ELIMINATED</div>' : ''}
+        </div>`;
+      }).join('');
+      document.getElementById('players-list-waiting').innerHTML = playerDivs;
+      document.getElementById('players-list-game').innerHTML = playerDivs;
+    }
+
+    function getAvatarUrl(userId) {
+      // This is a placeholder. In a real app, you'd fetch from profiles.
+      return `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`;
+    }
+
+    function getUsername(userId) {
+      return userId.substring(0, 8);
+    }
+
+    document.getElementById('start-game-btn').onclick = async () => {
+      // Fetch all question IDs
+      const { data: questions } = await supabase.from('questions').select('id');
+      const shuffled = questions.sort(() => 0.5 - Math.random()).map(q => q.id);
+      await supabase
+        .from('games')
+        .update({ status: 'active', question_ids: shuffled, current_question_index: 0 })
+        .eq('id', currentGame.id);
+    };
+
+    document.getElementById('leave-game-btn').onclick = () => {
+      if (currentChannel) supabase.removeChannel(currentChannel);
+      showScreen('lobby');
+    };
+
+    // Game Logic
+    async function startGame(gameData) {
+      showScreen('game');
+      loadQuestion(gameData);
+    }
+
+    async function loadQuestion(gameData) {
+      clearInterval(timerInterval);
+      const qIndex = gameData.current_question_index;
+      const qId = gameData.question_ids[qIndex];
+      const { data: question } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('id', qId)
+        .single();
+
+      document.getElementById('question-text').textContent = question.question_text;
+      const optionsHtml = question.options.map((opt, i) => 
+        `<button class="option-btn" data-index="${i}">${opt}</button>`
+      ).join('');
+      document.getElementById('options-container').innerHTML = optionsHtml;
+
+      // Add event listeners to options
+      document.querySelectorAll('.option-btn').forEach(btn => {
+        btn.onclick = () => submitAnswer(btn.dataset.index, question.correct_answer_index);
+      });
+
+      // Start timer
+      let timeLeft = currentGame.settings.time_per_question || 10;
+      document.getElementById('timer-display').textContent = `${timeLeft}s`;
+      timerInterval = setInterval(async () => {
+        timeLeft--;
+        document.getElementById('timer-display').textContent = `${timeLeft}s`;
+        if (timeLeft <= 0) {
+          clearInterval(timerInterval);
+          // Move to next question or end game
+          await advanceGame(gameData);
+        }
+      }, 1000);
+    }
+
+    async function submitAnswer(selectedIndex, correctIndex) {
+      if (document.querySelector('.option-btn.correct')) return; // Already answered
+
+      const isCorrect = parseInt(selectedIndex) === correctIndex;
+      const btn = document.querySelector(`.option-btn[data-index="${selectedIndex}"]`);
+      btn.classList.add(isCorrect ? 'correct' : 'incorrect');
+      if (!isCorrect) return;
+
+      // Update player score
+      await supabase.rpc('increment_player_score', {
+        p_game_id: currentGame.id,
+        p_user_id: currentUser.id
+      });
+
+      clearInterval(timerInterval);
+      await advanceGame(await supabase.from('games').select().eq('id', currentGame.id).single().then(r => r.data));
+    }
+
+    async function advanceGame(gameData) {
+      const nextIndex = gameData.current_question_index + 1;
+      const totalQuestions = gameData.question_ids.length;
+
+      if (nextIndex >= totalQuestions) {
+        endGame();
+        return;
+      }
+
+      await supabase
+        .from('games')
+        .update({ current_question_index: nextIndex })
+        .eq('id', currentGame.id);
+    }
+
+    async function endGame() {
+      showScreen('results');
+      const { data } = await supabase
+        .from('players')
+        .select('user_id, score')
+        .eq('game_id', currentGame.id)
+        .order('score', { ascending: false });
+
+      const winner = data[0];
+      document.getElementById('winner-message').textContent = `${getUsername(winner.user_id)} Wins!`;
+
+      const scoresHtml = data.map(p => 
+        `<div class="player-card">
+          <img src="${getAvatarUrl(p.user_id)}" class="avatar" />
+          <div>${getUsername(p.user_id)}</div>
+          <div>Score: ${p.score}</div>
+        </div>`
+      ).join('');
+      document.getElementById('final-scores-list').innerHTML = scoresHtml;
+
+      // Update winner's win count
+      if (winner.user_id === currentUser.id) {
+        await supabase.rpc('increment_games_won', { p_user_id: currentUser.id });
       }
     }
-  }, 1000);
-}
 
-choicesEl.addEventListener('click', (e)=>{
-  const btn = e.target.closest('.choice');
-  if (!btn) return;
-  const idx = Number(btn.dataset.index);
-  if (!currentUser || !currentGame) return;
-  broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerIndex: idx });
-  appendMessage('You', `chose option ${idx+1}`);
-});
+    // Back to lobby from results
+    document.getElementById('back-to-lobby-results').onclick = () => showScreen('lobby');
+    document.getElementById('play-again-btn').onclick = () => showScreen('lobby');
 
-submitAnswerBtn.addEventListener('click', () => {
-    const typed = answerInput.value?.trim().toLowerCase();
-    if (!typed || !currentUser || !currentGame) return;
-    const choices = Array.from(document.querySelectorAll('.choice')).map(c => c.textContent.trim().toLowerCase());
-    const idx = choices.indexOf(typed);
-    if (idx !== -1) {
-        broadcast({ type:'answer', user_id: myProfile.id, username: myProfile.username, answerIndex: idx });
-        appendMessage('You', `answered: ${answerInput.value}`);
-        answerInput.value = '';
-    } else {
-        showSystem('Your typed answer did not match any choice.');
-    }
-});
-
-async function evaluateAnswerFromRemote(payload){
-  if (!currentGame || roundLocked) return;
-  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
-  if (!qid) return;
-  const { data: q } = await supabase.from('questions').select('correct_answer_index, options').eq('id', qid).single();
-  if (!q) return;
-
-  if (payload.answerIndex === q.correct_answer_index) {
-    roundLocked = true;
-    clearInterval(roundTimer);
-    const { data: p } = await supabase.from('players').select('score').eq('game_id', currentGame.id).eq('user_id', payload.user_id).single();
-    if (p) {
-      await supabase.from('players').update({ score: (p.score||0)+1 }).eq('game_id', currentGame.id).eq('user_id', payload.user_id);
-    }
-    await revealAndAdvance(payload);
-  } else {
-    appendMessage('System', `${payload.username} answered incorrectly.`);
-  }
-}
-
-async function revealAndAdvance(winnerPayload){
-  const qid = currentGame.question_ids?.[currentGame.current_question_index - 1];
-  if (!qid) return;
-  const { data: q } = await supabase.from('questions').select('correct_answer_index, options').eq('id', qid).single();
-  const correctText = q ? (q.options?.[q.correct_answer_index] || '—') : '—';
-  
-  const resultPayload = { type:'round-result', winner_id: winnerPayload?.user_id || null, winner_name: winnerPayload?.username || null, correct_answer: correctText };
-  broadcast(resultPayload);
-  showRoundResult(resultPayload);
-
-  await sleep(4000); // Wait 4 seconds before next round
-
-  if (currentGame.settings?.eliminate_after > 0 && currentGame.current_question_index >= currentGame.settings.eliminate_after) {
-    await maybeEliminate();
-  }
-  
-  await nextRound();
-}
-
-async function maybeEliminate(){
-  const { data: players } = await supabase.from('players').select('*').eq('game_id', currentGame.id).eq('is_eliminated', false);
-  if (!players || players.length <= 1) return;
-  players.sort((a,b) => (a.score||0) - (b.score||0));
-  const toRemove = players[0];
-  if (toRemove) {
-    await supabase.from('players').update({ is_eliminated: true }).eq('id', toRemove.id);
-    broadcast({ type:'player-eliminated', user_id: toRemove.user_id });
-  }
-}
-
-async function finishGame(){
-  if (!currentGame) return;
-  const { data: players } = await supabase.from('players').select('user_id,score').eq('game_id', currentGame.id);
-  if (players && players.length > 0) {
-    players.sort((a,b) => (b.score||0) - (a.score||0));
-    const winner = players[0];
-    if (winner && winner.user_id) {
-      const { data: profile, error } = await supabase.from('profiles').select('games_won').eq('id', winner.user_id).single();
-      if (profile && !error) {
-        await supabase.from('profiles').update({ games_won: (profile.games_won||0)+1 }).eq('id', winner.user_id);
+    // Initialize
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        currentUser = session.user;
+        document.getElementById('username-display').textContent = currentUser.email.split('@')[0];
+        showScreen('lobby');
       }
-    }
-  }
-  await supabase.from('games').update({ status:'ended', is_active: false }).eq('id', currentGame.id);
-  broadcast({ type:'game-ended' });
-  showSystem('Game finished.');
-}
+    });
 
-function showRoundResult(payload){
-  const resultText = payload.winner_name 
-    ? `Winner: ${payload.winner_name}! Correct answer was: ${payload.correct_answer}`
-    : `Time's up! Correct answer was: ${payload.correct_answer}`;
-  questionTextEl.textContent = resultText;
-  choicesEl.innerHTML = '';
-  refreshPlayers();
-}
-
-/* ===========================
-   Admin: add question UI
-   =========================== */
-adminToggleBtn.addEventListener('click', () => {
-    adminPanel.style.display = adminPanel.style.display === 'none' ? 'block' : 'none';
-});
-toggleAdminBtn.addEventListener('click', () => {
-    adminPanel.style.display = 'none';
-});
-
-addQuestionBtn.addEventListener('click', async ()=>{
-  if (!currentUser) return alert('Sign in first');
-  const text = qText.value?.trim();
-  const opts = [opt0.value?.trim(), opt1.value?.trim(), opt2.value?.trim(), opt3.value?.trim()];
-  if (!text || opts.some(o => !o)) return alert('Fill question and all 4 options');
-  const correct = Number(correctIndex.value);
-  const { error } = await supabase.from('questions').insert({ question_text: text, options: opts, correct_answer_index: correct });
-  if (error) { console.error(error); alert('Failed to add question: '+error.message); return; }
-  alert('Question added.');
-  qText.value = ''; opt0.value=''; opt1.value=''; opt2.value=''; opt3.value=''; correctIndex.value='0';
-});
-
-refreshQuestionsBtn.addEventListener('click', async ()=>{
-  const { count, error } = await supabase.from('questions').select('id', { count: 'exact', head: true });
-  if (error) return alert('Could not fetch count.');
-  alert('Total questions: ' + (count || 0));
-});
-
-// FIX 3: Removed the second, incorrect `handleGameEvent` function and the unused `handleActionEvent` function.
-
-/* ===========================
-   Utilities & startup
-   =========================== */
-function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
-function showSystem(txt){ appendMessage('System', txt); }
-
-(async function main(){
-  adminPanel.style.display = 'none';
-  await initAuth();
-})();
-
-</script>
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        showScreen('login');
+      }
+    });
+  </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>
