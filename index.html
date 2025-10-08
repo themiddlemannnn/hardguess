@@ -43,7 +43,7 @@
         .container {
             width: 100%;
             max-width: 800px;
-            height: 95%;
+            height: 95dvh; /* UPDATED from 95% */
             max-height: 900px;
             background-color: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
@@ -160,11 +160,38 @@
         #settings-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--accent-gold); padding: 0.5rem; width: auto; box-shadow: none; }
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
         #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; }
+
+        /* NEW CSS BLOCK FOR MOBILE RESPONSIVENESS */
+        @media (max-width: 480px) {
+            h1 { font-size: 1.8rem; } /* Make main title smaller */
+            h2 { font-size: 1.5rem; } /* Make screen titles smaller */
+
+            #lobby-screen .game-code {
+                font-size: 1.8rem; /* Shrink the game code display */
+                padding: 0.8rem;
+            }
+            
+            #game-screen .timer {
+                width: 65px;  /* Make the timer circle smaller */
+                height: 65px;
+                font-size: 2rem;
+            }
+
+            #game-screen .question {
+                font-size: 1.1rem; /* Shrink the question text */
+                min-height: 60px;
+                padding: 0.8rem;
+            }
+
+            .answer-btn {
+                font-size: 0.9rem; /* Make answer button text smaller */
+                padding: 0.9rem 1rem 0.9rem 3rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Auth Screen -->
         <div id="auth-screen" class="screen">
             <h1>HardGuess Trivia</h1>
             <button id="google-login-btn" class="google-btn">🚀 Sign in with Google</button>
@@ -177,7 +204,6 @@
             <p id="auth-error" class="error-message"></p>
         </div>
 
-        <!-- Profile Setup Screen -->
         <div id="profile-setup-screen" class="screen">
             <h2>Set Up Your Profile</h2>
             <div class="input-group">
@@ -188,7 +214,6 @@
             <p id="profile-error" class="error-message"></p>
         </div>
 
-        <!-- Main Menu Screen -->
         <div id="main-menu-screen" class="screen">
             <button id="settings-btn">⚙️</button>
             <h2 id="welcome-message">Welcome!</h2>
@@ -200,7 +225,6 @@
             <p id="menu-error" class="error-message"></p>
         </div>
 
-        <!-- NEW Settings Screen -->
         <div id="settings-screen" class="screen">
             <h2>Settings</h2>
             <div class="input-group">
@@ -212,7 +236,6 @@
             <p id="settings-error" class="error-message"></p>
         </div>
         
-        <!-- Host Setup Screen -->
         <div id="host-setup-screen" class="screen">
             <h2>Create Your Game</h2>
             <h3>Set the rules for this match</h3>
@@ -222,7 +245,6 @@
             <button id="back-to-main-menu-btn" class="secondary-btn">Back to Main Menu</button>
         </div>
 
-        <!-- Lobby Screen -->
         <div id="lobby-screen" class="screen">
             <h2>Lobby</h2>
             <p style="text-align: center; margin-bottom: 0.5rem;">Share this code with your friends:</p>
@@ -232,7 +254,6 @@
             <button id="start-game-btn" style="display: none;">Start Game</button>
         </div>
 
-        <!-- Game Screen -->
         <div id="game-screen" class="screen">
             <div id="game-timer" class="timer">--</div>
             <p id="question-number" style="text-align:center; margin-bottom: 1rem;">Question 1/10</p>
@@ -243,7 +264,6 @@
             <div id="game-player-list" class="player-list" style="margin-top:1rem;"></div>
         </div>
 
-        <!-- End Game Screen -->
         <div id="end-game-screen" class="screen">
             <h1>Game Over!</h1>
             <h2 id="winner-announcement"></h2>
@@ -258,7 +278,7 @@
 
     <script type="module">
         // ===============================================
-        //           SUPABASE & APP SETUP
+        //             SUPABASE & APP SETUP
         // ===============================================
         const SUPABASE_URL = 'https://mqbtucwhwliaffwcadlh.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnR1Y3dod2xpYWZmd2NhZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTcyODcsImV4cCI6MjA3NTQ5MzI4N30.iMJdU_oR3yUX1izWGIVs_NkxiW0OZ-tfyvbA9jfeyvc';
@@ -266,7 +286,7 @@
         const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ===============================================
-        //                 DOM ELEMENTS
+        //                   DOM ELEMENTS
         // ===============================================
         const screens = { auth: document.getElementById('auth-screen'), profileSetup: document.getElementById('profile-setup-screen'), mainMenu: document.getElementById('main-menu-screen'), settings: document.getElementById('settings-screen'), hostSetup: document.getElementById('host-setup-screen'), lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen'), endGame: document.getElementById('end-game-screen') };
         const googleLoginBtn = document.getElementById('google-login-btn'); const guestLoginBtn = document.getElementById('guest-login-btn'); const emailInput = document.getElementById('email-input'); const passwordInput = document.getElementById('password-input'); const emailLoginBtn = document.getElementById('email-login-btn'); const emailSignupBtn = document.getElementById('email-signup-btn'); const authError = document.getElementById('auth-error'); const usernameInput = document.getElementById('username-input'); const saveProfileBtn = document.getElementById('save-profile-btn'); const profileError = document.getElementById('profile-error');
@@ -278,12 +298,12 @@
         const winnerAnnouncement = document.getElementById('winner-announcement'); const finalScores = document.getElementById('final-scores'); const playAgainBtn = document.getElementById('play-again-btn'); const endMainMenuBtn = document.getElementById('end-main-menu-btn');
 
         // ===============================================
-        //               APPLICATION STATE
+        //                APPLICATION STATE
         // ===============================================
         let currentUser = null, userProfile = null, currentGameId = null, currentGameSession = null, gameChannel = null, timerInterval = null, currentCorrectAnswer = null, roundInProgress = false;
 
         // ===============================================
-        //                UI FUNCTIONS
+        //                 UI FUNCTIONS
         // ===============================================
         function showScreen(screenName) { Object.values(screens).forEach(s => s.classList.remove('active')); if(screens[screenName]) screens[screenName].classList.add('active'); }
         function displayError(el, msg) { el.textContent = msg; el.style.display = 'block'; }
@@ -305,7 +325,7 @@
         }
 
         // ===============================================
-        //          AUTHENTICATION & PROFILE
+        //             AUTHENTICATION & PROFILE
         // ===============================================
         async function handleGoogleLogin() { /* ... unchanged ... */ }
         async function handleGuestLogin() { /* ... unchanged ... */ }
@@ -340,7 +360,7 @@
         }
 
         // ===============================================
-        //               GAME/LOBBY LOGIC
+        //                GAME/LOBBY LOGIC
         // ===============================================
         function generateJoinCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
         async function confirmAndCreateGame() {
@@ -391,7 +411,7 @@
         }
 
         // ===============================================
-        //              CORE GAMEPLAY LOOP
+        //               CORE GAMEPLAY LOOP
         // ===============================================
         function startRoundTimer() {
             clearInterval(timerInterval);
@@ -415,27 +435,22 @@
 
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
-            // FIX: Check roundInProgress flag and if button is already selected/disabled
             if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
             
-            // FIX: Disable all buttons immediately after one is chosen
             document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
             selectedButton.classList.add('selected');
             
-            // Send the answer to the database
             await dbClient.rpc('submit_answer', { game_id_to_update: currentGameId, answer_key: selectedButton.dataset.option });
         }
         
-        // NEW/REWORKED FUNCTION to handle showing correct/incorrect answers
         function revealAnswers() {
-            roundInProgress = false; // Round is over, prevent further actions
+            roundInProgress = false;
             clearInterval(timerInterval);
             document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
             
             const selectedButton = answersGrid.querySelector('.answer-btn.selected');
             const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
 
-            // Apply styling to show results
             if (correctButton) {
                 correctButton.classList.add('correct');
             }
@@ -443,17 +458,20 @@
                 selectedButton.classList.add('incorrect');
             }
 
-            // After a delay, the host advances the game state
             setTimeout(() => {
                 if (currentUser.id === currentGameSession.host_id) {
+                    // UPDATED: Added error handling and retry logic
                     dbClient.rpc('advance_round', { game_id_to_update: currentGameId })
                         .then(({error}) => { 
-                            if(error) console.error("Advance round error:", error.message); 
+                            if(error) {
+                                console.error("Advance round error:", error.message);
+                                alert("Could not load the next question due to a network error. The game will try again in 5 seconds.");
+                                setTimeout(() => handleStartGame(), 5000); 
+                            }
                         });
                 }
-            }, 4000); // 4-second delay to show the result
+            }, 4000);
         }
-
 
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
@@ -474,7 +492,6 @@
             answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
             answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
             
-            // FIX: Store the correct answer key for the reveal phase
             currentCorrectAnswer = question.correct_answer_key;
             
             startRoundTimer();
@@ -495,7 +512,6 @@
             const activeScreenId = document.querySelector('.screen.active')?.id;
             const isHost = currentUser.id === currentGameSession.host_id;
 
-            // FIX: Stop any running timers if we move away from the game screen
             if (currentGameSession.state !== 'in_game' && timerInterval) {
                 clearInterval(timerInterval);
             }
@@ -507,7 +523,6 @@
                 startGameBtn.style.display = isHost && currentGameSession.players.length > 1 ? 'block' : 'none';
                 startGameBtn.disabled = currentGameSession.players.length < 2;
             } else if (currentGameSession.state === 'in_game') {
-                // Prevent re-rendering question if index hasn't changed, to avoid flicker
                 const currentlyDisplayedQuestion = parseInt(questionNumber.textContent.split(' ')[1]?.split('/')[0], 10) - 1;
                 if (activeScreenId !== 'game-screen' || currentlyDisplayedQuestion !== currentGameSession.current_question_index) {
                     showScreen('game');
@@ -522,7 +537,7 @@
         }
 
         // ===============================================
-        //               EVENT LISTENERS
+        //                EVENT LISTENERS
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
@@ -538,10 +553,20 @@
         joinGameBtn.addEventListener('click', handleJoinGame);
         startGameBtn.addEventListener('click', handleStartGame);
         answersGrid.addEventListener('click', handleAnswerSelection);
-        gameCodeDisplay.addEventListener('click', () => navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => alert('Code Copied!')));
         playAgainBtn.addEventListener('click', handlePlayAgain);
         endMainMenuBtn.addEventListener('click', () => { sessionStorage.removeItem('activeGameId'); showScreen('mainMenu'); });
         
+        // UPDATED: Nicer "Copied!" notification
+        gameCodeDisplay.addEventListener('click', () => {
+            navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
+                const originalCode = gameCodeDisplay.textContent;
+                gameCodeDisplay.textContent = 'COPIED!';
+                setTimeout(() => {
+                    gameCodeDisplay.textContent = originalCode;
+                }, 1500); // Change back after 1.5 seconds
+            });
+        });
+
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session) { await checkUserProfile(session.user); }
@@ -550,4 +575,3 @@
     </script>
 </body>
 </html>
-
