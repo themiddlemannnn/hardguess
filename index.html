@@ -43,7 +43,7 @@
         .container {
             width: 100%;
             max-width: 800px;
-            height: 95dvh;
+            height: 95dvh; /* UPDATED from 95% */
             max-height: 900px;
             background-color: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
@@ -161,58 +161,31 @@
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
         #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; }
 
+        /* NEW CSS BLOCK FOR MOBILE RESPONSIVENESS */
         @media (max-width: 480px) {
-            h1 { font-size: 1.8rem; }
-            h2 { font-size: 1.5rem; }
+            h1 { font-size: 1.8rem; } /* Make main title smaller */
+            h2 { font-size: 1.5rem; } /* Make screen titles smaller */
+
             #lobby-screen .game-code {
-                font-size: 1.8rem;
+                font-size: 1.8rem; /* Shrink the game code display */
                 padding: 0.8rem;
             }
+            
             #game-screen .timer {
-                width: 65px;
+                width: 65px;  /* Make the timer circle smaller */
                 height: 65px;
                 font-size: 2rem;
             }
+
             #game-screen .question {
-                font-size: 1.1rem;
+                font-size: 1.1rem; /* Shrink the question text */
                 min-height: 60px;
                 padding: 0.8rem;
             }
+
             .answer-btn {
-                font-size: 0.9rem;
+                font-size: 0.9rem; /* Make answer button text smaller */
                 padding: 0.9rem 1rem 0.9rem 3rem;
-            }
-        }
-        
-        /* NEW FIX: Shrinks elements on short screens to prevent scrolling */
-        @media (max-height: 750px) {
-            body {
-                padding: 0.2rem; /* Reduce overall padding */
-            }
-            .screen {
-                padding: 0.5rem 1rem; /* Reduce padding inside screens */
-            }
-            #game-screen .timer {
-                width: 50px;
-                height: 50px;
-                font-size: 1.6rem;
-                margin-bottom: 0.5rem;
-            }
-            #game-screen .question {
-                font-size: 1rem;
-                padding: 0.5rem;
-                min-height: 60px;
-                margin-bottom: 0.5rem;
-            }
-            .answers {
-                gap: 0.4rem;
-            }
-            .answer-btn {
-                padding: 0.6rem 1rem 0.6rem 2.5rem;
-                font-size: 0.9rem;
-            }
-            #game-player-list {
-                margin-top: 0.5rem;
             }
         }
     </style>
@@ -487,6 +460,7 @@
 
             setTimeout(() => {
                 if (currentUser.id === currentGameSession.host_id) {
+                    // UPDATED: Added error handling and retry logic
                     dbClient.rpc('advance_round', { game_id_to_update: currentGameId })
                         .then(({error}) => { 
                             if(error) {
@@ -582,13 +556,14 @@
         playAgainBtn.addEventListener('click', handlePlayAgain);
         endMainMenuBtn.addEventListener('click', () => { sessionStorage.removeItem('activeGameId'); showScreen('mainMenu'); });
         
+        // UPDATED: Nicer "Copied!" notification
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
                 const originalCode = gameCodeDisplay.textContent;
                 gameCodeDisplay.textContent = 'COPIED!';
                 setTimeout(() => {
                     gameCodeDisplay.textContent = originalCode;
-                }, 1500);
+                }, 1500); // Change back after 1.5 seconds
             });
         });
 
