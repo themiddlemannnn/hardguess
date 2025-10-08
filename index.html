@@ -476,7 +476,12 @@
         //             AUTHENTICATION LOGIC
         // ===============================================
         async function handleGoogleLogin() {
-            const { error } = await dbClient.auth.signInWithOAuth({ provider: 'google' });
+            const { error } = await dbClient.auth.signInWithOAuth({ 
+                provider: 'google',
+                options: {
+                    redirectTo: 'https://themiddlemannnn.github.io/hardguess'
+                }
+            });
             if (error) displayError(authError, error.message);
         }
 
