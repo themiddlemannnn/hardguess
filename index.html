@@ -290,13 +290,16 @@
             box-shadow: none;
         }
         
-        .answer-btn.selected { /* A state for when the user clicks */
+        /* State for when the user clicks an answer */
+        .answer-btn.selected {
             background-color: var(--accent-gold);
             color: var(--primary-black);
+            border-color: var(--accent-gold);
         }
 
-        .answer-btn.correct { background-color: var(--accent-green); border-color: var(--accent-green); color: #fff; }
-        .answer-btn.incorrect { background-color: var(--error-red); border-color: var(--error-red); color: #fff; }
+        .answer-btn.correct { background-color: var(--accent-green) !important; border-color: var(--accent-green) !important; color: #fff !important; }
+        .answer-btn.incorrect { background-color: var(--error-red) !important; border-color: var(--error-red) !important; color: #fff !important; }
+        
         .answer-btn:disabled {
             background-color: var(--locked-grey);
             border-color: var(--locked-grey);
@@ -494,7 +497,6 @@
         const gameTimer = document.getElementById('game-timer');
         const questionNumber = document.getElementById('question-number');
         const questionText = document.getElementById('question-text');
-        const answerButtons = document.querySelectorAll('.answer-btn');
         const answersGrid = document.getElementById('answers-grid');
         const gamePlayerList = document.getElementById('game-player-list');
         const winnerAnnouncement = document.getElementById('winner-announcement');
@@ -509,6 +511,8 @@
         let currentGameId = null;
         let currentGameSession = null;
         let gameChannel = null;
+        let timerInterval = null; // To hold the timer's setInterval
+        let currentCorrectAnswer = null; // To hold the correct answer for the current question
 
 
         // ===============================================
@@ -603,7 +607,6 @@
             } else if (data) {
                 userProfile = data;
                 welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
-                // IMPORTANT: Now we check for an active game *after* loading the profile
                 await checkForActiveGame();
             } else if (error) {
                 displayError(authError, 'Error fetching profile.');
@@ -686,7 +689,6 @@
                 showScreen('mainMenu');
             } else {
                 currentGameId = data.id;
-                // Save to session storage for persistence
                 sessionStorage.setItem('activeGameId', data.id);
                 await subscribeToGameChannel(data.id);
                 showScreen('lobby');
@@ -710,18 +712,15 @@
             } else {
                 currentGameId = data.id;
                 currentGameSession = data;
-                // Save to session storage for persistence
                 sessionStorage.setItem('activeGameId', data.id);
                 await subscribeToGameChannel(data.id);
                 showScreen('lobby');
             }
         }
         
-        // UPDATED to fetch and store question IDs
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
-
-            // 1. Fetch all question IDs from the database
+            
             const { data: questionIds, error } = await dbClient
                 .from('questions')
                 .select('id');
@@ -731,17 +730,15 @@
                 return;
             }
 
-            // 2. Shuffle the IDs and pick the first 10
             const shuffled = questionIds.map(q => q.id).sort(() => 0.5 - Math.random());
             const gameQuestionIds = shuffled.slice(0, 10);
 
-            // 3. Update the game session to start and include the question list
             await dbClient
                 .from('game_sessions')
                 .update({ 
                     state: 'in_game', 
                     current_question_index: 0,
-                    question_ids: gameQuestionIds // Store the selected questions
+                    question_ids: gameQuestionIds
                 })
                 .eq('id', currentGameId);
         }
@@ -759,8 +756,12 @@
                     filter: `id=eq.${gameId}` 
                 }, payload => {
                     console.log('Game state updated!', payload.new);
+                    const oldIndex = currentGameSession?.current_question_index;
                     currentGameSession = payload.new;
-                    updateUIFromGameState();
+                    // Only update UI if it's a new question or state change
+                    if (oldIndex !== currentGameSession.current_question_index || !document.querySelector('.screen.active')) {
+                       updateUIFromGameState();
+                    }
                 })
                 .subscribe();
 
@@ -769,15 +770,92 @@
                 currentGameSession = data;
                 updateUIFromGameState();
             } else {
-                // Game doesn't exist anymore, clear session and go to menu
                 sessionStorage.removeItem('activeGameId');
                 showScreen('mainMenu');
             }
         }
         
-        // NEW function to display the current question
+        // ===============================================
+        //              CORE GAMEPLAY LOOP
+        // ===============================================
+
+        function startRoundTimer() {
+            clearInterval(timerInterval); // Clear any old timers
+            let timeLeft = currentGameSession.question_time_limit;
+            gameTimer.textContent = timeLeft;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                gameTimer.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    revealAnswer(); // Time's up!
+                }
+            }, 1000);
+        }
+
+        async function handleAnswerSelection(event) {
+            const selectedButton = event.target.closest('.answer-btn');
+            if (!selectedButton || selectedButton.disabled) return;
+
+            // Disable all buttons immediately after one is chosen
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+            selectedButton.classList.add('selected');
+
+            // TODO: In a more advanced version, you'd send this selection to the database
+            // so other players can see who has answered. For now, we keep it client-side.
+        }
+
+        function revealAnswer() {
+            clearInterval(timerInterval);
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+            
+            const selectedButton = answersGrid.querySelector('.answer-btn.selected');
+            const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
+
+            if (selectedButton) {
+                if (selectedButton.dataset.option === currentCorrectAnswer) {
+                    // Correctly answered, no need to change color from gold to green
+                    // You could add score logic here
+                } else {
+                    selectedButton.classList.add('incorrect');
+                }
+            }
+            
+            correctButton.classList.add('correct');
+
+            // Wait a few seconds then move to the next question (only host does this)
+            setTimeout(() => {
+                if (currentUser.id === currentGameSession.host_id) {
+                    nextQuestion();
+                }
+            }, 4000); // 4-second delay to show the result
+        }
+
+        async function nextQuestion() {
+            const newIndex = currentGameSession.current_question_index + 1;
+            
+            if (newIndex >= currentGameSession.question_ids.length) {
+                // Game over
+                await dbClient.from('game_sessions')
+                    .update({ state: 'finished' })
+                    .eq('id', currentGameId);
+            } else {
+                // Next question
+                await dbClient.from('game_sessions')
+                    .update({ current_question_index: newIndex })
+                    .eq('id', currentGameId);
+            }
+        }
+
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
+
+            // 1. Reset UI from previous question
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = false;
+                btn.classList.remove('selected', 'correct', 'incorrect');
+            });
 
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
@@ -785,7 +863,6 @@
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
             questionText.textContent = 'Finding question...';
             
-            // Fetch the full question data from the DB
             const { data: question, error } = await dbClient
                 .from('questions')
                 .select('*')
@@ -797,15 +874,18 @@
                 return;
             }
             
-            // Populate the UI
+            // 2. Populate UI with new question
             questionText.textContent = question.question_text;
             answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
             answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
             answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
             answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+            
+            // 3. Store correct answer and start the timer
+            currentCorrectAnswer = question.correct_answer_key;
+            startRoundTimer();
         }
 
-        // UPDATED to handle new states and logic
         function updateUIFromGameState() {
             if (!currentGameSession) return;
 
@@ -823,16 +903,16 @@
             else if (currentGameSession.state === 'in_game') {
                 if (activeScreenId !== 'game-screen') showScreen('game');
                 renderPlayerList(gamePlayerList, currentGameSession.players);
-                displayCurrentQuestion(); // Load and show the question
+                displayCurrentQuestion();
             }
             else if (currentGameSession.state === 'finished') {
                 if (activeScreenId !== 'end-game-screen') showScreen('endGame');
-                sessionStorage.removeItem('activeGameId'); // Game is over, clear stored ID
+                sessionStorage.removeItem('activeGameId');
                 // TODO: Determine and display winner
+                winnerAnnouncement.textContent = "The game has ended!";
             }
         }
         
-        // NEW function to handle session persistence
         async function checkForActiveGame() {
             const activeGameId = sessionStorage.getItem('activeGameId');
             if (activeGameId) {
@@ -840,7 +920,6 @@
                 currentGameId = activeGameId;
                 await subscribeToGameChannel(currentGameId);
             } else {
-                // If no active game, just show the main menu
                 if (!document.querySelector('.screen.active')) {
                      showScreen('mainMenu');
                 }
@@ -863,22 +942,24 @@
         joinGameBtn.addEventListener('click', handleJoinGame);
         startGameBtn.addEventListener('click', handleStartGame);
         
+        // Add event listener for the whole answers grid
+        answersGrid.addEventListener('click', handleAnswerSelection);
+        
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent)
                 .then(() => alert('Game code copied!'));
         });
         
         playAgainBtn.addEventListener('click', () => {
-            sessionStorage.removeItem('activeGameId'); // Clear stored ID when game is done
+            sessionStorage.removeItem('activeGameId');
             showScreen('mainMenu');
-});
+        });
         
         // Initial page load logic
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session) {
                 currentUser = session.user;
-                // checkUserProfile will now call checkForActiveGame after profile is loaded
                 await checkUserProfile(currentUser);
             } else {
                 showScreen('auth');
