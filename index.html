@@ -141,26 +141,8 @@
         
         #game-screen .timer { width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--accent-gold); display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; margin: 0 auto 1rem; transition: all 0.5s; box-shadow: 0 0 15px var(--accent-gold-darker); color: var(--accent-gold); flex-shrink: 0; }
         #game-screen .question { font-size: 1.3rem; text-align: center; min-height: 80px; margin-bottom: 1rem; background-color: rgba(0, 0, 0, 0.5); padding: 1rem; border-radius: 15px; border: 2px solid var(--accent-gold); display: flex; align-items: center; justify-content: center; }
-
-        /* === UPDATED CSS FOR SCROLLBAR FIX === */
-        #game-screen {
-            justify-content: space-between; /* Better distributes vertical space */
-        }
-        #game-screen .answers {
-            display: grid;
-            grid-template-columns: 1fr; /* Mobile-first: default to 1 column */
-            grid-template-rows: 1fr 1fr 1fr 1fr; /* Mobile-first: 4 rows */
-            gap: 0.8rem;
-            flex-grow: 1; /* Make it fill available vertical space */
-            align-content: center;
-        }
-        @media (min-width: 600px) {
-            #game-screen .answers {
-                grid-template-columns: 1fr 1fr; /* Desktop: 2 columns */
-                grid-template-rows: 1fr 1fr; /* Desktop: 2 rows */
-            }
-        }
-        /* ===================================== */
+        .answers { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
+        @media (min-width: 600px) { .answers { grid-template-columns: 1fr 1fr; } }
 
         .answer-btn { position: relative; padding: 1rem 1rem 1rem 3.5rem; font-size: 1rem; font-weight: 700; background: transparent; color: var(--text-light); border: 2px solid var(--accent-gold); border-radius: 0; margin: 0; text-align: left; clip-path: polygon(0% 0%, 100% 0%, 95% 50%, 100% 100%, 0% 100%, 5% 50%); transition: background-color 0.2s ease-in-out; }
         .answer-btn::before { content: attr(data-option) ":"; position: absolute; left: 1.5rem; top: 50%; transform: translateY(-50%); color: var(--accent-gold); font-weight: 900; }
@@ -199,6 +181,38 @@
             .answer-btn {
                 font-size: 0.9rem;
                 padding: 0.9rem 1rem 0.9rem 3rem;
+            }
+        }
+        
+        /* NEW FIX: Shrinks elements on short screens to prevent scrolling */
+        @media (max-height: 750px) {
+            body {
+                padding: 0.2rem; /* Reduce overall padding */
+            }
+            .screen {
+                padding: 0.5rem 1rem; /* Reduce padding inside screens */
+            }
+            #game-screen .timer {
+                width: 50px;
+                height: 50px;
+                font-size: 1.6rem;
+                margin-bottom: 0.5rem;
+            }
+            #game-screen .question {
+                font-size: 1rem;
+                padding: 0.5rem;
+                min-height: 60px;
+                margin-bottom: 0.5rem;
+            }
+            .answers {
+                gap: 0.4rem;
+            }
+            .answer-btn {
+                padding: 0.6rem 1rem 0.6rem 2.5rem;
+                font-size: 0.9rem;
+            }
+            #game-player-list {
+                margin-top: 0.5rem;
             }
         }
     </style>
