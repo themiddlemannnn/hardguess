@@ -3,37 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HardGuess - Multiplayer Trivia</title>
-    <!-- Google Fonts for a modern look -->
+    <title>HardGuess - Millionaire Edition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- Supabase Client Library -->
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
-        /* --- 1. General Styling & Theme --- */
+        /* --- 1. General Styling & "Millionaire" Theme --- */
         :root {
-            --bg-color: #121212;
-            --primary-color: #1a1a1a;
-            --secondary-color: #242424;
-            --text-color: #e0e0e0;
-            --accent-blue: #00bfff;
-            --accent-green: #39ff14;
-            --accent-magenta: #ff00ff;
-            --error-red: #ff3b30;
+            --bg-dark-blue: #02022b;
+            --bg-light-blue: #0f0f4b;
+            --primary-black: #0c0c0c;
+            --text-light: #f0f0f0;
+            --accent-gold: #fbb03b;
+            --accent-gold-darker: #c88720;
+            --accent-green: #2ecc71;
+            --error-red: #e74c3c;
+            --locked-grey: #4a4a4a;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Lato', sans-serif;
         }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
+            /* Dramatic spotlight effect */
+            background-color: var(--bg-dark-blue);
+            background-image: radial-gradient(circle at center, var(--bg-light-blue) 0%, var(--bg-dark-blue) 70%);
+            color: var(--text-light);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -44,23 +45,23 @@
         .container {
             width: 100%;
             max-width: 800px;
-            background-color: var(--primary-color);
-            border-radius: 15px;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 20px;
+            box-shadow: 0 0 40px rgba(251, 176, 59, 0.2);
             overflow: hidden;
-            border: 1px solid var(--secondary-color);
+            border: 2px solid var(--accent-gold);
         }
 
         /* --- 2. Screen Management --- */
         .screen {
             display: none;
             padding: 2rem;
-            animation: fadeIn 0.5s;
+            animation: fadeIn 0.5s ease-in-out;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .screen.active {
@@ -70,9 +71,16 @@
         h1, h2, h3 {
             text-align: center;
             margin-bottom: 1.5rem;
-            color: var(--accent-blue);
-            text-shadow: 0 0 5px var(--accent-blue);
+            color: var(--accent-gold);
+            text-shadow: 0 0 8px var(--accent-gold-darker);
+            font-weight: 900;
+            text-transform: uppercase;
         }
+        h3 {
+            font-size: 1.2rem;
+            color: var(--text-light);
+        }
+
 
         /* --- 3. UI Components (Buttons, Inputs) --- */
         .input-group {
@@ -81,52 +89,67 @@
 
         input {
             width: 100%;
-            padding: 0.75rem;
-            background-color: var(--secondary-color);
-            border: 1px solid #444;
+            padding: 0.85rem;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 2px solid var(--accent-gold-darker);
             border-radius: 8px;
-            color: var(--text-color);
+            color: var(--text-light);
             font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
-        
+        input:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 10px var(--accent-gold);
+        }
+
         button {
             width: 100%;
             padding: 0.85rem;
             border: none;
             border-radius: 8px;
-            background-color: var(--accent-blue);
-            color: #000;
+            background: linear-gradient(180deg, var(--accent-gold) 0%, var(--accent-gold-darker) 100%);
+            color: var(--primary-black);
             font-size: 1.1rem;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
             margin-top: 0.5rem;
+            text-transform: uppercase;
+            box-shadow: 0 4px 0 var(--accent-gold-darker);
         }
 
         button:hover {
-            transform: scale(1.02);
-            box-shadow: 0 0 15px var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(251, 176, 59, 0.4);
         }
-        
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 0 var(--accent-gold-darker);
         }
 
-        button.google-btn {
-            background-color: var(--accent-green);
+        button:disabled {
+            background: var(--locked-grey);
+            box-shadow: 0 4px 0 #333;
+            cursor: not-allowed;
+            transform: none;
         }
-        
+
+        button.google-btn { /* Make Google button fit the theme */
+             background: linear-gradient(180deg, #4285F4 0%, #357ae8 100%);
+             color: white;
+             box-shadow: 0 4px 0 #2a62bc;
+        }
+
         button.secondary-btn {
-            background-color: var(--secondary-color);
-            color: var(--text-color);
-            border: 1px solid var(--accent-magenta);
+            background: transparent;
+            color: var(--accent-gold);
+            border: 2px solid var(--accent-gold);
+            box-shadow: none;
         }
-        
         button.secondary-btn:hover {
-             box-shadow: 0 0 15px var(--accent-magenta);
+            background: var(--accent-gold);
+            color: var(--primary-black);
         }
 
         .error-message {
@@ -141,58 +164,61 @@
             font-size: 2.5rem;
             font-weight: 700;
             text-align: center;
-            background-color: var(--secondary-color);
+            background-color: var(--primary-black);
             padding: 1rem;
             border-radius: 10px;
+            border: 2px solid var(--accent-gold);
             letter-spacing: 5px;
-            color: var(--accent-green);
+            color: var(--accent-gold);
             margin-bottom: 1.5rem;
             cursor: pointer;
         }
-        
+
         .player-list {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 1rem;
             margin-bottom: 2rem;
         }
 
         .player-card {
-            background-color: var(--secondary-color);
+            background-color: var(--bg-light-blue);
             border-radius: 10px;
+            border: 1px solid var(--accent-gold-darker);
             padding: 1rem;
             text-align: center;
             position: relative;
             transition: all 0.3s ease;
         }
-        
+
         .player-card img {
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            border: 3px solid var(--accent-magenta);
+            border: 3px solid var(--accent-gold);
             margin-bottom: 0.5rem;
-            background-color: #333;
+            background-color: var(--bg-dark-blue);
         }
 
         .player-card p {
             font-weight: 600;
             word-break: break-all;
+            color: var(--text-light);
         }
-        
+
         .host-badge {
             position: absolute;
             top: 5px;
             right: 5px;
             font-size: 1.5rem;
         }
-        
-        /* --- 5. Game Screen --- */
+
+        /* --- 5. Game Screen - The Millionaire Look --- */
         #game-screen .timer {
-            width: 100px;
-            height: 100px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
-            border: 5px solid var(--accent-green);
+            border: 4px solid var(--accent-gold);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -200,6 +226,8 @@
             font-weight: 700;
             margin: 0 auto 1.5rem;
             transition: all 0.5s;
+            box-shadow: 0 0 15px var(--accent-gold-darker);
+            color: var(--accent-gold);
         }
 
         #game-screen .question {
@@ -207,6 +235,13 @@
             text-align: center;
             min-height: 100px;
             margin-bottom: 2rem;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 1.5rem;
+            border-radius: 15px;
+            border: 2px solid var(--accent-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .answers {
@@ -214,36 +249,75 @@
             grid-template-columns: 1fr;
             gap: 1rem;
         }
-        
+
         @media (min-width: 600px) {
             .answers {
                 grid-template-columns: 1fr 1fr;
             }
         }
 
+        /* THE ICONIC ANSWER BUTTONS */
         .answer-btn {
-            padding: 1rem;
-            font-size: 1rem;
-            background-color: var(--secondary-color);
-            color: var(--text-color);
-            border: 2px solid var(--accent-blue);
+            position: relative;
+            padding: 1rem 1rem 1rem 3.5rem; /* Space for the letter */
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: transparent;
+            color: var(--text-light);
+            border: 2px solid var(--accent-gold);
+            border-radius: 0; /* Remove default radius */
+            margin: 0;
+            text-align: left;
+            clip-path: polygon(0% 0%, 100% 0%, 95% 50%, 100% 100%, 0% 100%, 5% 50%);
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        .answer-btn::before {
+            content: attr(data-option) ":";
+            position: absolute;
+            left: 1.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--accent-gold);
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .answer-btn:hover:not(:disabled) {
+            background-color: var(--accent-gold-darker);
+            color: white;
+            transform: none;
+            box-shadow: none;
         }
         
-        .answer-btn.correct { background-color: var(--accent-green); border-color: var(--accent-green); color: #000; }
-        .answer-btn.incorrect { background-color: var(--error-red); border-color: var(--error-red); color: #000; }
-        .answer-btn:disabled { color: #888; }
+        .answer-btn.selected { /* A state for when the user clicks */
+            background-color: var(--accent-gold);
+            color: var(--primary-black);
+        }
+
+        .answer-btn.correct { background-color: var(--accent-green); border-color: var(--accent-green); color: #fff; }
+        .answer-btn.incorrect { background-color: var(--error-red); border-color: var(--error-red); color: #fff; }
+        .answer-btn:disabled {
+            background-color: var(--locked-grey);
+            border-color: var(--locked-grey);
+            color: #aaa;
+            cursor: not-allowed;
+        }
+        .answer-btn:disabled::before {
+            color: #aaa;
+        }
 
         /* --- 6. Animations & Effects --- */
         .player-card.current-user-glow img {
-            animation: pulse 2s infinite;
+            animation: pulse-gold 2s infinite;
         }
-        
+
         .player-card.eliminated {
             opacity: 0.4;
-            position: relative;
             transform: scale(0.9);
+            background-color: var(--primary-black);
         }
-        
+
         .player-card.eliminated::after {
             content: '❌';
             position: absolute;
@@ -252,13 +326,12 @@
             transform: translate(-50%, -50%);
             font-size: 4rem;
             text-shadow: 0 0 10px red;
-            animation: fadeIn 0.5s;
         }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 5px var(--accent-green); }
-            50% { box-shadow: 0 0 20px var(--accent-green); }
-            100% { box-shadow: 0 0 5px var(--accent-green); }
+
+        @keyframes pulse-gold {
+            0% { box-shadow: 0 0 5px var(--accent-gold-darker); }
+            50% { box-shadow: 0 0 20px var(--accent-gold); }
+            100% { box-shadow: 0 0 5px var(--accent-gold-darker); }
         }
 
     </style>
@@ -266,9 +339,6 @@
 <body>
 
     <div class="container">
-        <!-- =================================== -->
-        <!--        AUTHENTICATION SCREEN        -->
-        <!-- =================================== -->
         <div id="auth-screen" class="screen active">
             <h1>HardGuess Trivia</h1>
             <button id="google-login-btn" class="google-btn">🚀 Sign in with Google</button>
@@ -285,23 +355,16 @@
             <p id="auth-error" class="error-message"></p>
         </div>
 
-        <!-- =================================== -->
-        <!--           PROFILE SETUP             -->
-        <!-- =================================== -->
         <div id="profile-setup-screen" class="screen">
             <h2>Set Up Your Profile</h2>
             <div class="input-group">
                 <label for="username-input">Username (3-20 characters)</label>
                 <input type="text" id="username-input" placeholder="Enter a unique username">
             </div>
-            <!-- Avatar selection can be added here -->
             <button id="save-profile-btn">Save and Continue</button>
             <p id="profile-error" class="error-message"></p>
         </div>
 
-        <!-- =================================== -->
-        <!--           MAIN MENU SCREEN          -->
-        <!-- =================================== -->
         <div id="main-menu-screen" class="screen">
             <h2 id="welcome-message">Welcome!</h2>
             <button id="create-game-btn">Create Game</button>
@@ -312,27 +375,19 @@
              <p id="menu-error" class="error-message"></p>
         </div>
 
-        <!-- =================================== -->
-        <!--           LOBBY SCREEN              -->
-        <!-- =================================== -->
         <div id="lobby-screen" class="screen">
             <h2>Lobby</h2>
             <p style="text-align: center; margin-bottom: 0.5rem;">Share this code with your friends:</p>
             <div id="game-code-display" class="game-code" title="Click to copy">XXXXXX</div>
             <h3>Players (<span id="player-count">1</span>/4)</h3>
             <div id="lobby-player-list" class="player-list">
-                <!-- Player cards will be injected by JS -->
-            </div>
+                </div>
             <div id="host-settings" style="display: none;">
                 <h3>Host Settings</h3>
-                 <!-- Settings for timer, elimination, etc. will go here -->
-            </div>
+                 </div>
             <button id="start-game-btn" style="display: none;">Start Game</button>
         </div>
 
-        <!-- =================================== -->
-        <!--             GAME SCREEN             -->
-        <!-- =================================== -->
         <div id="game-screen" class="screen">
             <div id="game-timer" class="timer">10</div>
             <p id="question-number" style="text-align:center; margin-bottom: 1rem;">Question 1/20</p>
@@ -346,9 +401,6 @@
              <div id="game-player-list" class="player-list" style="margin-top:2rem;"></div>
         </div>
 
-        <!-- =================================== -->
-        <!--           END GAME SCREEN           -->
-        <!-- =================================== -->
         <div id="end-game-screen" class="screen">
             <h1>Game Over!</h1>
             <h2 id="winner-announcement"></h2>
@@ -365,7 +417,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnR1Y3dod2xpYWZmd2NhZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTcyODcsImV4cCI6MjA3NTQ5MzI4N30.iMJdU_oR3yUX1izWGIVs_NkxiW0OZ-tfyvbA9jfeyvc';
 
         // ===============================================
-        //          SUPABASE CLIENT INITIALIZATION
+        //         SUPABASE CLIENT INITIALIZATION
         // ===============================================
         const { createClient } = supabase;
         const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -409,7 +461,7 @@
         const playerCount = document.getElementById('player-count');
         const hostSettings = document.getElementById('host-settings');
         const startGameBtn = document.getElementById('start-game-btn');
-        
+
         // Game & End Game
         const gameTimer = document.getElementById('game-timer');
         const questionText = document.getElementById('question-text');
@@ -417,7 +469,7 @@
         const gamePlayerList = document.getElementById('game-player-list');
         const winnerAnnouncement = document.getElementById('winner-announcement');
         const playAgainBtn = document.getElementById('play-again-btn');
-        
+
 
         // ===============================================
         //               APPLICATION STATE
@@ -471,9 +523,9 @@
             });
             if (playerCount) playerCount.textContent = players.length;
         }
-        
+
         // ===============================================
-        //             AUTHENTICATION LOGIC
+        //              AUTHENTICATION LOGIC
         // ===============================================
         async function handleGoogleLogin() {
             const { error } = await dbClient.auth.signInWithOAuth({ 
@@ -508,14 +560,14 @@
             const { error } = await dbClient.auth.signInWithPassword({ email, password });
             if (error) displayError(authError, error.message);
         }
-        
+
         async function checkUserProfile(user) {
             const { data, error } = await dbClient
                 .from('users')
                 .select('*')
                 .eq('id', user.id)
                 .single();
-            
+
             if (user.is_anonymous) {
                 // For anonymous users, if they don't have a profile, send them to create one.
                 if (error && error.code === 'PGRST116') {
@@ -549,7 +601,7 @@
                 showScreen('auth');
             }
         });
-        
+
         // ===============================================
         //                 PROFILE LOGIC
         // ===============================================
@@ -560,7 +612,7 @@
                 return;
             }
             clearError(profileError);
-            
+
             const { error } = await dbClient.from('users').insert({
                 id: currentUser.id,
                 username: username,
@@ -578,7 +630,7 @@
         }
 
         // ===============================================
-        //                GAME/LOBBY LOGIC
+        //               GAME/LOBBY LOGIC
         // ===============================================
         function generateJoinCode() {
             return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -606,7 +658,7 @@
                 })
                 .select()
                 .single();
-            
+
             if (error) {
                 displayError(menuError, 'Could not create game: ' + error.message);
             } else {
@@ -668,7 +720,7 @@
                 .from('game_sessions')
                 .update({ players: updatedPlayers })
                 .eq('id', game.id);
-            
+
             if (updateError) {
                 displayError(menuError, 'Could not join game: ' + updateError.message);
             } else {
@@ -677,10 +729,10 @@
                 showScreen('lobby');
             }
         }
-        
+
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
-            
+
             // TODO: Fetch random question IDs and store them in the game session
             // For now, we'll just change the state
              await dbClient
@@ -706,7 +758,7 @@
                     updateUIFromGameState();
                 })
                 .subscribe();
-                
+
             // Fetch initial state
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
             currentGameSession = data;
@@ -744,7 +796,7 @@
         }
 
         // ===============================================
-        //                 EVENT LISTENERS
+        //                EVENT LISTENERS
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
@@ -759,7 +811,7 @@
                 .then(() => alert('Game code copied!'));
         });
         playAgainBtn.addEventListener('click', () => showScreen('mainMenu'));
-        
+
         // Initial check on page load
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
