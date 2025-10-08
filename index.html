@@ -466,8 +466,37 @@
         // ===============================================
         //             AUTHENTICATION & PROFILE
         // ===============================================
-        async function handleGoogleLogin() { /* ... unchanged ... */ }
-        async function handleGuestLogin() { /* ... unchanged ... */ }
+        async function handleGoogleLogin() {
+            clearError(authError);
+            const { error } = await dbClient.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin
+                }
+            });
+            if (error) {
+                displayError(authError, 'Google sign-in failed: ' + error.message);
+                console.error('Google OAuth error:', error);
+            }
+        }
+        
+        async function handleGuestLogin() {
+            clearError(authError);
+            try {
+                const { data, error } = await dbClient.auth.signInAnonymously();
+                if (error) {
+                    displayError(authError, 'Guest login failed: ' + error.message);
+                    console.error('Guest login error:', error);
+                } else if (data?.user) {
+                    currentUser = data.user;
+                    showScreen('profileSetup');
+                }
+            } catch (err) {
+                displayError(authError, 'Guest login failed: ' + err.message);
+                console.error('Guest login exception:', err);
+            }
+        }
+        
         async function checkUserProfile(user) {
             const { data, error } = await dbClient.from('users').select('*').eq('id', user.id).single();
             if (error && error.code === 'PGRST116') showScreen('profileSetup');
