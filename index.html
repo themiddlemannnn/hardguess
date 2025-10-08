@@ -412,7 +412,7 @@
 
         <div id="game-screen" class="screen">
             <div id="game-timer" class="timer">10</div>
-            <p id="question-number" style="text-align:center; margin-bottom: 1rem;">Question 1/20</p>
+            <p id="question-number" style="text-align:center; margin-bottom: 1rem;">Question 1/10</p>
             <h2 id="question-text" class="question">Loading next question...</h2>
             <div id="answers-grid" class="answers">
                 <button class="answer-btn" data-option="a">A)</button>
@@ -453,7 +453,7 @@
             auth: document.getElementById('auth-screen'),
             profileSetup: document.getElementById('profile-setup-screen'),
             mainMenu: document.getElementById('main-menu-screen'),
-            hostSetup: document.getElementById('host-setup-screen'), // New screen
+            hostSetup: document.getElementById('host-setup-screen'),
             lobby: document.getElementById('lobby-screen'),
             game: document.getElementById('game-screen'),
             endGame: document.getElementById('end-game-screen'),
@@ -492,8 +492,10 @@
 
         // Game & End Game
         const gameTimer = document.getElementById('game-timer');
+        const questionNumber = document.getElementById('question-number');
         const questionText = document.getElementById('question-text');
         const answerButtons = document.querySelectorAll('.answer-btn');
+        const answersGrid = document.getElementById('answers-grid');
         const gamePlayerList = document.getElementById('game-player-list');
         const winnerAnnouncement = document.getElementById('winner-announcement');
         const playAgainBtn = document.getElementById('play-again-btn');
@@ -559,7 +561,7 @@
             const { error } = await dbClient.auth.signInWithOAuth({ 
                 provider: 'google',
                 options: {
-                    redirectTo: window.location.href // Redirect back to the current page
+                    redirectTo: window.location.href
                 }
             });
             if (error) displayError(authError, error.message);
@@ -596,13 +598,13 @@
                 .eq('id', user.id)
                 .single();
 
-            // For both regular and guest users, if they don't have a profile, send them to create one.
-            if (error && error.code === 'PGRST116') { // Not found
+            if (error && error.code === 'PGRST116') {
                 showScreen('profileSetup');
             } else if (data) {
                 userProfile = data;
                 welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
-                showScreen('mainMenu');
+                // IMPORTANT: Now we check for an active game *after* loading the profile
+                await checkForActiveGame();
             } else if (error) {
                 displayError(authError, 'Error fetching profile.');
             }
@@ -615,6 +617,7 @@
             } else if (event === 'SIGNED_OUT') {
                 currentUser = null;
                 userProfile = null;
+                sessionStorage.removeItem('activeGameId');
                 showScreen('auth');
             }
         });
@@ -636,7 +639,7 @@
             });
 
             if (error) {
-                if (error.code === '23505') { // Unique constraint violation
+                if (error.code === '23505') {
                     displayError(profileError, 'Username is already taken.');
                 } else {
                     displayError(profileError, 'Error saving profile: ' + error.message);
@@ -680,15 +683,16 @@
 
             if (error) {
                 displayError(menuError, 'Could not create game: ' + error.message);
-                showScreen('mainMenu'); // Go back to menu on error
+                showScreen('mainMenu');
             } else {
                 currentGameId = data.id;
+                // Save to session storage for persistence
+                sessionStorage.setItem('activeGameId', data.id);
                 await subscribeToGameChannel(data.id);
                 showScreen('lobby');
             }
         }
 
-        // REWRITTEN to use the secure database function
         async function handleJoinGame() {
             const code = joinCodeInput.value.toUpperCase();
             if (code.length !== 6) {
@@ -697,7 +701,6 @@
             }
             clearError(menuError);
 
-            // Call the secure 'join_game' function in the database
             const { data, error } = await dbClient.rpc('join_game', {
                 join_code_to_find: code
             });
@@ -706,20 +709,40 @@
                 displayError(menuError, error.message);
             } else {
                 currentGameId = data.id;
-                currentGameSession = data; // The function returns the full game state
+                currentGameSession = data;
+                // Save to session storage for persistence
+                sessionStorage.setItem('activeGameId', data.id);
                 await subscribeToGameChannel(data.id);
                 showScreen('lobby');
             }
         }
         
+        // UPDATED to fetch and store question IDs
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
 
-            // TODO: Fetch random question IDs and store them in the game session
-            // For now, we'll just change the state
-             await dbClient
+            // 1. Fetch all question IDs from the database
+            const { data: questionIds, error } = await dbClient
+                .from('questions')
+                .select('id');
+            
+            if (error || !questionIds || questionIds.length === 0) {
+                alert("Error: Could not fetch questions to start the game.");
+                return;
+            }
+
+            // 2. Shuffle the IDs and pick the first 10
+            const shuffled = questionIds.map(q => q.id).sort(() => 0.5 - Math.random());
+            const gameQuestionIds = shuffled.slice(0, 10);
+
+            // 3. Update the game session to start and include the question list
+            await dbClient
                 .from('game_sessions')
-                .update({ state: 'in_game', current_question_index: 0 })
+                .update({ 
+                    state: 'in_game', 
+                    current_question_index: 0,
+                    question_ids: gameQuestionIds // Store the selected questions
+                })
                 .eq('id', currentGameId);
         }
 
@@ -741,36 +764,86 @@
                 })
                 .subscribe();
 
-            // Fetch initial state just to be sure
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
-            currentGameSession = data;
-            updateUIFromGameState();
+            if (data) {
+                currentGameSession = data;
+                updateUIFromGameState();
+            } else {
+                // Game doesn't exist anymore, clear session and go to menu
+                sessionStorage.removeItem('activeGameId');
+                showScreen('mainMenu');
+            }
         }
         
+        // NEW function to display the current question
+        async function displayCurrentQuestion() {
+            if (!currentGameSession || !currentGameSession.question_ids) return;
+
+            const qIndex = currentGameSession.current_question_index;
+            const questionId = currentGameSession.question_ids[qIndex];
+
+            questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
+            questionText.textContent = 'Finding question...';
+            
+            // Fetch the full question data from the DB
+            const { data: question, error } = await dbClient
+                .from('questions')
+                .select('*')
+                .eq('id', questionId)
+                .single();
+
+            if (error || !question) {
+                questionText.textContent = "Error loading question.";
+                return;
+            }
+            
+            // Populate the UI
+            questionText.textContent = question.question_text;
+            answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
+            answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
+            answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
+            answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+        }
+
+        // UPDATED to handle new states and logic
         function updateUIFromGameState() {
             if (!currentGameSession) return;
 
-            const currentState = document.querySelector('.screen.active').id;
+            const activeScreenId = document.querySelector('.screen.active')?.id;
 
-            // Update based on state
             if (currentGameSession.state === 'lobby') {
-                if(currentState !== 'lobby-screen') showScreen('lobby');
+                if (activeScreenId !== 'lobby-screen') showScreen('lobby');
                 gameCodeDisplay.textContent = currentGameSession.join_code;
                 renderPlayerList(lobbyPlayerList, currentGameSession.players);
                 
                 const isHost = currentUser.id === currentGameSession.host_id;
                 startGameBtn.style.display = isHost && currentGameSession.players.length > 1 ? 'block' : 'none';
-                startGameBtn.disabled = currentGameSession.players.length < 2; // Should be 2 or more to start
+                startGameBtn.disabled = currentGameSession.players.length < 2;
             }
             else if (currentGameSession.state === 'in_game') {
-                if(currentState !== 'game-screen') showScreen('game');
+                if (activeScreenId !== 'game-screen') showScreen('game');
                 renderPlayerList(gamePlayerList, currentGameSession.players);
-                // TODO: Display current question based on `current_question_index`
-                // TODO: Start the timer
+                displayCurrentQuestion(); // Load and show the question
             }
             else if (currentGameSession.state === 'finished') {
-                if(currentState !== 'end-game-screen') showScreen('endGame');
+                if (activeScreenId !== 'end-game-screen') showScreen('endGame');
+                sessionStorage.removeItem('activeGameId'); // Game is over, clear stored ID
                 // TODO: Determine and display winner
+            }
+        }
+        
+        // NEW function to handle session persistence
+        async function checkForActiveGame() {
+            const activeGameId = sessionStorage.getItem('activeGameId');
+            if (activeGameId) {
+                console.log(`Found active game ${activeGameId}, attempting to reconnect...`);
+                currentGameId = activeGameId;
+                await subscribeToGameChannel(currentGameId);
+            } else {
+                // If no active game, just show the main menu
+                if (!document.querySelector('.screen.active')) {
+                     showScreen('mainMenu');
+                }
             }
         }
 
@@ -783,7 +856,6 @@
         emailLoginBtn.addEventListener('click', handleEmailLogin);
         saveProfileBtn.addEventListener('click', handleSaveProfile);
         
-        // Updated and new listeners
         createGameBtn.addEventListener('click', () => showScreen('hostSetup'));
         backToMainMenuBtn.addEventListener('click', () => showScreen('mainMenu'));
         confirmCreationBtn.addEventListener('click', confirmAndCreateGame);
@@ -795,13 +867,18 @@
             navigator.clipboard.writeText(gameCodeDisplay.textContent)
                 .then(() => alert('Game code copied!'));
         });
-        playAgainBtn.addEventListener('click', () => showScreen('mainMenu'));
         
-        // Initial check on page load
+        playAgainBtn.addEventListener('click', () => {
+            sessionStorage.removeItem('activeGameId'); // Clear stored ID when game is done
+            showScreen('mainMenu');
+});
+        
+        // Initial page load logic
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session) {
                 currentUser = session.user;
+                // checkUserProfile will now call checkForActiveGame after profile is loaded
                 await checkUserProfile(currentUser);
             } else {
                 showScreen('auth');
