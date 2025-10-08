@@ -29,7 +29,9 @@
         }
         html, body {
             height: 100%;
-            overflow: hidden; /* Prevents scrolling on mobile */
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
         }
         body {
             background-color: var(--bg-dark-blue);
@@ -38,28 +40,32 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 1rem;
+            padding: 0.5rem;
         }
         .container {
             width: 100%;
             max-width: 800px;
-            height: 95dvh; /* UPDATED from 95% */
-            max-height: 900px;
+            height: 100vh;
+            height: 100dvh;
+            max-height: calc(100vh - 1rem);
+            max-height: calc(100dvh - 1rem);
             background-color: rgba(0, 0, 0, 0.4);
             border-radius: 20px;
             box-shadow: 0 0 40px rgba(251, 176, 59, 0.2);
             border: 2px solid var(--accent-gold);
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         .screen {
             display: none;
             flex-direction: column;
-            justify-content: center;
-            padding: 1rem 1.5rem;
+            padding: 1rem;
             animation: fadeIn 0.5s ease-in-out;
             flex-grow: 1;
             overflow-y: auto;
+            overflow-x: hidden;
+            height: 100%;
         }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -68,22 +74,41 @@
         .screen.active {
             display: flex;
         }
+        
+        /* Scrollbar styling */
+        .screen::-webkit-scrollbar {
+            width: 6px;
+        }
+        .screen::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        .screen::-webkit-scrollbar-thumb {
+            background: var(--accent-gold-darker);
+            border-radius: 10px;
+        }
+        .screen::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-gold);
+        }
+
         h1, h2, h3 {
             text-align: center;
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             color: var(--accent-gold);
             text-shadow: 0 0 8px var(--accent-gold-darker);
             font-weight: 900;
             text-transform: uppercase;
+            flex-shrink: 0;
         }
-        h1 { font-size: 2.2rem; }
-        h2 { font-size: 1.8rem; }
-        h3 { font-size: 1.2rem; color: var(--text-light); }
+        h1 { font-size: clamp(1.5rem, 5vw, 2.2rem); }
+        h2 { font-size: clamp(1.3rem, 4vw, 1.8rem); }
+        h3 { font-size: clamp(1rem, 3vw, 1.2rem); color: var(--text-light); }
 
-        .input-group { margin-bottom: 1rem; }
+        .input-group { margin-bottom: 0.75rem; flex-shrink: 0; }
+        .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
         input, select {
             width: 100%;
-            padding: 0.75rem;
+            padding: 0.65rem;
             background-color: rgba(0, 0, 0, 0.3);
             border: 2px solid var(--accent-gold-darker);
             border-radius: 8px;
@@ -98,12 +123,12 @@
         }
         button {
             width: 100%;
-            padding: 0.85rem;
+            padding: 0.75rem;
             border: none;
             border-radius: 8px;
             background: linear-gradient(180deg, var(--accent-gold) 0%, var(--accent-gold-darker) 100%);
             color: var(--primary-black);
-            font-size: 1.1rem;
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
@@ -118,34 +143,116 @@
         button.google-btn { background: linear-gradient(180deg, #4285F4 0%, #357ae8 100%); color: white; box-shadow: 0 4px 0 #2a62bc; }
         button.secondary-btn { background: transparent; color: var(--accent-gold); border: 2px solid var(--accent-gold); box-shadow: none; }
         button.secondary-btn:hover { background: var(--accent-gold); color: var(--primary-black); }
-        .error-message { color: var(--error-red); text-align: center; margin-top: 1rem; display: none; }
+        .error-message { color: var(--error-red); text-align: center; margin-top: 0.75rem; display: none; font-size: 0.9rem; flex-shrink: 0; }
 
         #lobby-screen .game-code {
-            font-size: 2.5rem;
+            font-size: clamp(1.5rem, 6vw, 2.5rem);
             font-weight: 700;
             text-align: center;
             background-color: var(--primary-black);
-            padding: 1rem;
+            padding: 0.75rem;
             border-radius: 10px;
             border: 2px solid var(--accent-gold);
             letter-spacing: 5px;
             color: var(--accent-gold);
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
             cursor: pointer;
+            flex-shrink: 0;
         }
-        .player-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .player-card { background-color: var(--bg-light-blue); border-radius: 10px; border: 1px solid var(--accent-gold-darker); padding: 1rem; text-align: center; position: relative; transition: all 0.3s ease; }
-        .player-card img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--accent-gold); margin-bottom: 0.5rem; background-color: var(--bg-dark-blue); }
-        .player-card p { font-weight: 600; word-break: break-all; color: var(--text-light); font-size: 0.9rem; }
-        .host-badge { position: absolute; top: 5px; right: 5px; font-size: 1.5rem; }
+        .player-list { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); 
+            gap: 0.75rem; 
+            margin-bottom: 1rem;
+        }
+        .player-card { 
+            background-color: var(--bg-light-blue); 
+            border-radius: 10px; 
+            border: 1px solid var(--accent-gold-darker); 
+            padding: 0.75rem; 
+            text-align: center; 
+            position: relative; 
+            transition: all 0.3s ease; 
+        }
+        .player-card img { 
+            width: clamp(40px, 10vw, 60px); 
+            height: clamp(40px, 10vw, 60px); 
+            border-radius: 50%; 
+            border: 3px solid var(--accent-gold); 
+            margin-bottom: 0.5rem; 
+            background-color: var(--bg-dark-blue); 
+        }
+        .player-card p { 
+            font-weight: 600; 
+            word-break: break-all; 
+            color: var(--text-light); 
+            font-size: clamp(0.75rem, 2vw, 0.9rem); 
+        }
+        .host-badge { position: absolute; top: 5px; right: 5px; font-size: 1.2rem; }
         
-        #game-screen .timer { width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--accent-gold); display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: 700; margin: 0 auto 1rem; transition: all 0.5s; box-shadow: 0 0 15px var(--accent-gold-darker); color: var(--accent-gold); flex-shrink: 0; }
-        #game-screen .question { font-size: 1.3rem; text-align: center; min-height: 80px; margin-bottom: 1rem; background-color: rgba(0, 0, 0, 0.5); padding: 1rem; border-radius: 15px; border: 2px solid var(--accent-gold); display: flex; align-items: center; justify-content: center; }
-        .answers { display: grid; grid-template-columns: 1fr; gap: 0.8rem; }
-        @media (min-width: 600px) { .answers { grid-template-columns: 1fr 1fr; } }
+        #game-screen .timer { 
+            width: clamp(60px, 15vw, 80px); 
+            height: clamp(60px, 15vw, 80px); 
+            border-radius: 50%; 
+            border: 4px solid var(--accent-gold); 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            font-size: clamp(1.8rem, 5vw, 2.5rem); 
+            font-weight: 700; 
+            margin: 0 auto 0.75rem; 
+            transition: all 0.5s; 
+            box-shadow: 0 0 15px var(--accent-gold-darker); 
+            color: var(--accent-gold); 
+            flex-shrink: 0; 
+        }
+        #game-screen .question { 
+            font-size: clamp(1rem, 3vw, 1.3rem); 
+            text-align: center; 
+            min-height: 60px; 
+            margin-bottom: 0.75rem; 
+            background-color: rgba(0, 0, 0, 0.5); 
+            padding: 0.75rem; 
+            border-radius: 15px; 
+            border: 2px solid var(--accent-gold); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            flex-shrink: 0;
+        }
+        .answers { 
+            display: grid; 
+            grid-template-columns: 1fr; 
+            gap: 0.6rem; 
+            margin-bottom: 0.75rem;
+        }
+        @media (min-width: 600px) { 
+            .answers { grid-template-columns: 1fr 1fr; } 
+        }
 
-        .answer-btn { position: relative; padding: 1rem 1rem 1rem 3.5rem; font-size: 1rem; font-weight: 700; background: transparent; color: var(--text-light); border: 2px solid var(--accent-gold); border-radius: 0; margin: 0; text-align: left; clip-path: polygon(0% 0%, 100% 0%, 95% 50%, 100% 100%, 0% 100%, 5% 50%); transition: background-color 0.2s ease-in-out; }
-        .answer-btn::before { content: attr(data-option) ":"; position: absolute; left: 1.5rem; top: 50%; transform: translateY(-50%); color: var(--accent-gold); font-weight: 900; }
+        .answer-btn { 
+            position: relative; 
+            padding: 0.75rem 0.75rem 0.75rem 3rem; 
+            font-size: clamp(0.85rem, 2.5vw, 1rem); 
+            font-weight: 700; 
+            background: transparent; 
+            color: var(--text-light); 
+            border: 2px solid var(--accent-gold); 
+            border-radius: 0; 
+            margin: 0; 
+            text-align: left; 
+            clip-path: polygon(0% 0%, 100% 0%, 95% 50%, 100% 100%, 0% 100%, 5% 50%); 
+            transition: background-color 0.2s ease-in-out; 
+        }
+        .answer-btn::before { 
+            content: attr(data-option) ":"; 
+            position: absolute; 
+            left: 1rem; 
+            top: 50%; 
+            transform: translateY(-50%); 
+            color: var(--accent-gold); 
+            font-weight: 900; 
+        }
         .answer-btn:hover:not(:disabled) { background-color: var(--accent-gold-darker); color: white; transform: none; box-shadow: none; }
         .answer-btn.selected { background-color: var(--accent-gold); color: var(--primary-black); border-color: var(--accent-gold); }
         .answer-btn.correct { background-color: var(--accent-green) !important; border-color: var(--accent-green) !important; color: #fff !important; }
@@ -157,36 +264,68 @@
         @keyframes pulse-gold { 0% { box-shadow: 0 0 5px var(--accent-gold-darker); } 50% { box-shadow: 0 0 20px var(--accent-gold); } 100% { box-shadow: 0 0 5px var(--accent-gold-darker); } }
 
         #main-menu-screen { position: relative; }
-        #settings-btn { position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.8rem; cursor: pointer; color: var(--accent-gold); padding: 0.5rem; width: auto; box-shadow: none; }
+        #settings-btn { 
+            position: absolute; 
+            top: 0.5rem; 
+            right: 0.5rem; 
+            background: none; 
+            border: none; 
+            font-size: 1.5rem; 
+            cursor: pointer; 
+            color: var(--accent-gold); 
+            padding: 0.5rem; 
+            width: auto; 
+            box-shadow: none; 
+            z-index: 10;
+        }
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
-        #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; }
+        #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; font-size: clamp(0.9rem, 2.5vw, 1rem); }
 
-        /* NEW CSS BLOCK FOR MOBILE RESPONSIVENESS */
-        @media (max-width: 480px) {
-            h1 { font-size: 1.8rem; } /* Make main title smaller */
-            h2 { font-size: 1.5rem; } /* Make screen titles smaller */
+        /* Mobile-specific adjustments */
+        @media (max-height: 700px) {
+            h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+            h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
+            h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+            .input-group { margin-bottom: 0.5rem; }
+            button { padding: 0.6rem; margin-top: 0.4rem; }
+            #game-screen .timer { margin-bottom: 0.5rem; }
+            #game-screen .question { margin-bottom: 0.5rem; padding: 0.6rem; min-height: 50px; }
+            .answers { gap: 0.5rem; margin-bottom: 0.5rem; }
+            .answer-btn { padding: 0.65rem 0.65rem 0.65rem 2.75rem; }
+            .player-list { gap: 0.5rem; margin-bottom: 0.75rem; }
+            .player-card { padding: 0.5rem; }
+        }
 
-            #lobby-screen .game-code {
-                font-size: 1.8rem; /* Shrink the game code display */
-                padding: 0.8rem;
-            }
-            
-            #game-screen .timer {
-                width: 65px;  /* Make the timer circle smaller */
-                height: 65px;
-                font-size: 2rem;
-            }
+        @media (max-height: 600px) {
+            body { padding: 0.25rem; }
+            .container { border-radius: 15px; max-height: calc(100vh - 0.5rem); }
+            .screen { padding: 0.75rem; }
+            h1 { font-size: 1.3rem; margin-bottom: 0.4rem; }
+            h2 { font-size: 1.2rem; margin-bottom: 0.4rem; }
+            #lobby-screen .game-code { padding: 0.5rem; margin-bottom: 0.75rem; }
+            #game-screen .timer { width: 55px; height: 55px; font-size: 1.6rem; }
+            .player-card img { width: 35px; height: 35px; }
+        }
 
-            #game-screen .question {
-                font-size: 1.1rem; /* Shrink the question text */
-                min-height: 60px;
-                padding: 0.8rem;
-            }
-
-            .answer-btn {
-                font-size: 0.9rem; /* Make answer button text smaller */
-                padding: 0.9rem 1rem 0.9rem 3rem;
-            }
+        /* Landscape mobile devices */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .container { max-height: calc(100vh - 0.25rem); }
+            .screen { padding: 0.5rem; }
+            h1 { font-size: 1.2rem; margin-bottom: 0.3rem; }
+            h2 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+            h3 { font-size: 0.9rem; margin-bottom: 0.3rem; }
+            button { padding: 0.5rem; font-size: 0.85rem; }
+            .input-group { margin-bottom: 0.4rem; }
+            input, select { padding: 0.5rem; font-size: 0.9rem; }
+            #game-screen .timer { width: 50px; height: 50px; font-size: 1.4rem; margin-bottom: 0.4rem; }
+            #game-screen .question { font-size: 0.95rem; padding: 0.5rem; min-height: 40px; margin-bottom: 0.5rem; }
+            .answers { gap: 0.4rem; }
+            .answer-btn { padding: 0.55rem 0.55rem 0.55rem 2.5rem; font-size: 0.8rem; }
+            .player-list { gap: 0.4rem; margin-bottom: 0.5rem; }
+            .player-card { padding: 0.4rem; }
+            .player-card img { width: 30px; height: 30px; }
+            .player-card p { font-size: 0.7rem; }
+            #question-number { font-size: 0.85rem; margin-bottom: 0.5rem; }
         }
     </style>
 </head>
@@ -196,7 +335,7 @@
             <h1>HardGuess Trivia</h1>
             <button id="google-login-btn" class="google-btn">🚀 Sign in with Google</button>
             <button id="guest-login-btn" class="secondary-btn">Play as Guest</button>
-            <p style="text-align: center; margin: 1rem 0;">or with email</p>
+            <p style="text-align: center; margin: 0.75rem 0; font-size: 0.9rem;">or with email</p>
             <div class="input-group"><input type="email" id="email-input" placeholder="Email"></div>
             <div class="input-group"><input type="password" id="password-input" placeholder="Password"></div>
             <button id="email-login-btn">Login</button>
@@ -218,7 +357,7 @@
             <button id="settings-btn">⚙️</button>
             <h2 id="welcome-message">Welcome!</h2>
             <button id="create-game-btn">Create Game</button>
-            <div class="input-group" style="margin-top: 2rem;">
+            <div class="input-group" style="margin-top: 1.5rem;">
                 <input type="text" id="join-code-input" placeholder="Enter 6-Digit Game Code" maxlength="6">
             </div>
             <button id="join-game-btn" class="secondary-btn">Join Game</button>
@@ -247,7 +386,7 @@
 
         <div id="lobby-screen" class="screen">
             <h2>Lobby</h2>
-            <p style="text-align: center; margin-bottom: 0.5rem;">Share this code with your friends:</p>
+            <p style="text-align: center; margin-bottom: 0.5rem; font-size: 0.9rem;">Share this code with your friends:</p>
             <div id="game-code-display" class="game-code" title="Click to copy">XXXXXX</div>
             <h3>Players (<span id="player-count">1</span>/4)</h3>
             <div id="lobby-player-list" class="player-list"></div>
@@ -256,12 +395,12 @@
 
         <div id="game-screen" class="screen">
             <div id="game-timer" class="timer">--</div>
-            <p id="question-number" style="text-align:center; margin-bottom: 1rem;">Question 1/10</p>
+            <p id="question-number" style="text-align:center; margin-bottom: 0.75rem; font-size: clamp(0.9rem, 2.5vw, 1rem);">Question 1/10</p>
             <h2 id="question-text" class="question">Waiting for host to start...</h2>
             <div id="answers-grid" class="answers">
                 <button class="answer-btn" data-option="a">A)</button><button class="answer-btn" data-option="b">B)</button><button class="answer-btn" data-option="c">C)</button><button class="answer-btn" data-option="d">D)</button>
             </div>
-            <div id="game-player-list" class="player-list" style="margin-top:1rem;"></div>
+            <div id="game-player-list" class="player-list" style="margin-top:0.75rem;"></div>
         </div>
 
         <div id="end-game-screen" class="screen">
@@ -342,7 +481,7 @@
             if (event === 'SIGNED_IN' && session) { currentUser = session.user; checkUserProfile(currentUser); }
             else if (event === 'SIGNED_OUT') { currentUser = null; userProfile = null; sessionStorage.removeItem('activeGameId'); showScreen('auth'); }
         });
-        async function handleSaveProfile() { /* ... unchanged, but for brevity ... */
+        async function handleSaveProfile() {
             const username = usernameInput.value.trim();
             if (username.length < 3 || username.length > 20) { displayError(profileError, 'Username must be 3-20 characters.'); return; }
             clearError(profileError);
@@ -418,7 +557,7 @@
             const startTime = new Date(currentGameSession.round_start_time).getTime();
             const timeLimit = currentGameSession.question_time_limit * 1000;
             
-            roundInProgress = true; // Set flag that the round is active
+            roundInProgress = true;
 
             timerInterval = setInterval(() => {
                 const now = new Date().getTime();
@@ -427,7 +566,6 @@
                 gameTimer.textContent = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    // Timer is up, reveal answers for everyone
                     revealAnswers(); 
                 }
             }, 500);
@@ -460,7 +598,6 @@
 
             setTimeout(() => {
                 if (currentUser.id === currentGameSession.host_id) {
-                    // UPDATED: Added error handling and retry logic
                     dbClient.rpc('advance_round', { game_id_to_update: currentGameId })
                         .then(({error}) => { 
                             if(error) {
@@ -541,8 +678,23 @@
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
-        emailSignupBtn.addEventListener('click', async () => { /* ... */ });
-        emailLoginBtn.addEventListener('click', async () => { /* ... */ });
+        emailSignupBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
+            clearError(authError);
+            const { error } = await dbClient.auth.signUp({ email, password });
+            if (error) displayError(authError, error.message);
+            else displayError(authError, 'Check your email to confirm your account!');
+        });
+        emailLoginBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
+            clearError(authError);
+            const { error } = await dbClient.auth.signInWithPassword({ email, password });
+            if (error) displayError(authError, error.message);
+        });
         saveProfileBtn.addEventListener('click', handleSaveProfile);
         settingsBtn.addEventListener('click', () => { updateUsernameInput.value = userProfile.username; showScreen('settings'); });
         saveSettingsBtn.addEventListener('click', handleSaveSettings);
@@ -556,14 +708,13 @@
         playAgainBtn.addEventListener('click', handlePlayAgain);
         endMainMenuBtn.addEventListener('click', () => { sessionStorage.removeItem('activeGameId'); showScreen('mainMenu'); });
         
-        // UPDATED: Nicer "Copied!" notification
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
                 const originalCode = gameCodeDisplay.textContent;
                 gameCodeDisplay.textContent = 'COPIED!';
                 setTimeout(() => {
                     gameCodeDisplay.textContent = originalCode;
-                }, 1500); // Change back after 1.5 seconds
+                }, 1500);
             });
         });
 
