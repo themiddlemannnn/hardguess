@@ -280,7 +280,7 @@
         // ===============================================
         //               APPLICATION STATE
         // ===============================================
-        let currentUser = null, userProfile = null, currentGameId = null, currentGameSession = null, gameChannel = null, timerInterval = null, currentCorrectAnswer = null;
+        let currentUser = null, userProfile = null, currentGameId = null, currentGameSession = null, gameChannel = null, timerInterval = null, currentCorrectAnswer = null, roundInProgress = false;
 
         // ===============================================
         //                UI FUNCTIONS
@@ -398,6 +398,8 @@
             const startTime = new Date(currentGameSession.round_start_time).getTime();
             const timeLimit = currentGameSession.question_time_limit * 1000;
             
+            roundInProgress = true; // Set flag that the round is active
+
             timerInterval = setInterval(() => {
                 const now = new Date().getTime();
                 const elapsed = now - startTime;
@@ -405,35 +407,76 @@
                 gameTimer.textContent = timeLeft;
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
-                    if (currentUser.id === currentGameSession.host_id) {
-                        dbClient.rpc('advance_round', { game_id_to_update: currentGameId }).then(({error}) => { if(error) console.error("Advance round error:", error.message); });
-                    }
+                    // Timer is up, reveal answers for everyone
+                    revealAnswers(); 
                 }
             }, 500);
         }
 
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
-            if (!selectedButton || selectedButton.disabled) return;
+            // FIX: Check roundInProgress flag and if button is already selected/disabled
+            if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
+            
+            // FIX: Disable all buttons immediately after one is chosen
             document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
             selectedButton.classList.add('selected');
+            
+            // Send the answer to the database
             await dbClient.rpc('submit_answer', { game_id_to_update: currentGameId, answer_key: selectedButton.dataset.option });
         }
+        
+        // NEW/REWORKED FUNCTION to handle showing correct/incorrect answers
+        function revealAnswers() {
+            roundInProgress = false; // Round is over, prevent further actions
+            clearInterval(timerInterval);
+            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+            
+            const selectedButton = answersGrid.querySelector('.answer-btn.selected');
+            const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
+
+            // Apply styling to show results
+            if (correctButton) {
+                correctButton.classList.add('correct');
+            }
+            if (selectedButton && selectedButton.dataset.option !== currentCorrectAnswer) {
+                selectedButton.classList.add('incorrect');
+            }
+
+            // After a delay, the host advances the game state
+            setTimeout(() => {
+                if (currentUser.id === currentGameSession.host_id) {
+                    dbClient.rpc('advance_round', { game_id_to_update: currentGameId })
+                        .then(({error}) => { 
+                            if(error) console.error("Advance round error:", error.message); 
+                        });
+                }
+            }, 4000); // 4-second delay to show the result
+        }
+
 
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
             document.querySelectorAll('.answer-btn').forEach(btn => { btn.disabled = false; btn.classList.remove('selected', 'correct', 'incorrect'); });
+            
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
+            
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
             questionText.textContent = 'Loading...';
+            
             const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
             if (error || !question) { questionText.textContent = "Error loading question."; return; }
+            
             questionText.textContent = question.question_text;
             answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
             answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
             answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
             answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+            
+            // FIX: Store the correct answer key for the reveal phase
+            currentCorrectAnswer = question.correct_answer_key;
+            
             startRoundTimer();
         }
 
@@ -452,6 +495,11 @@
             const activeScreenId = document.querySelector('.screen.active')?.id;
             const isHost = currentUser.id === currentGameSession.host_id;
 
+            // FIX: Stop any running timers if we move away from the game screen
+            if (currentGameSession.state !== 'in_game' && timerInterval) {
+                clearInterval(timerInterval);
+            }
+
             if (currentGameSession.state === 'lobby') {
                 if (activeScreenId !== 'lobby-screen') showScreen('lobby');
                 gameCodeDisplay.textContent = currentGameSession.join_code;
@@ -459,9 +507,13 @@
                 startGameBtn.style.display = isHost && currentGameSession.players.length > 1 ? 'block' : 'none';
                 startGameBtn.disabled = currentGameSession.players.length < 2;
             } else if (currentGameSession.state === 'in_game') {
-                if (activeScreenId !== 'game-screen') showScreen('game');
+                // Prevent re-rendering question if index hasn't changed, to avoid flicker
+                const currentlyDisplayedQuestion = parseInt(questionNumber.textContent.split(' ')[1]?.split('/')[0], 10) - 1;
+                if (activeScreenId !== 'game-screen' || currentlyDisplayedQuestion !== currentGameSession.current_question_index) {
+                    showScreen('game');
+                    displayCurrentQuestion();
+                }
                 renderPlayerList(gamePlayerList, currentGameSession.players);
-                displayCurrentQuestion();
             } else if (currentGameSession.state === 'finished') {
                 if (activeScreenId !== 'end-game-screen') showScreen('endGame');
                 sessionStorage.removeItem('activeGameId');
@@ -498,3 +550,4 @@
     </script>
 </body>
 </html>
+
