@@ -87,7 +87,7 @@
             margin-bottom: 1rem;
         }
 
-        input {
+        input, select {
             width: 100%;
             padding: 0.85rem;
             background-color: rgba(0, 0, 0, 0.3);
@@ -97,7 +97,7 @@
             font-size: 1rem;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
-        input:focus {
+        input:focus, select:focus {
             outline: none;
             border-color: var(--accent-gold);
             box-shadow: 0 0 10px var(--accent-gold);
@@ -339,7 +339,7 @@
 <body>
 
     <div class="container">
-        <div id="auth-screen" class="screen active">
+        <div id="auth-screen" class="screen">
             <h1>HardGuess Trivia</h1>
             <button id="google-login-btn" class="google-btn">🚀 Sign in with Google</button>
             <button id="guest-login-btn" class="secondary-btn">Play as Guest</button>
@@ -374,6 +374,31 @@
             <button id="join-game-btn" class="secondary-btn">Join Game</button>
              <p id="menu-error" class="error-message"></p>
         </div>
+        
+        <div id="host-setup-screen" class="screen">
+            <h2>Create Your Game</h2>
+            <h3>Set the rules for this match</h3>
+            <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                <label for="time-limit-select">Time Per Question:</label>
+                <select id="time-limit-select">
+                    <option value="10">10 Seconds</option>
+                    <option value="15">15 Seconds</option>
+                    <option value="20">20 Seconds</option>
+                    <option value="30">30 Seconds</option>
+                </select>
+            </div>
+            <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                <label for="elim-threshold-select">Eliminate Player After:</label>
+                <select id="elim-threshold-select">
+                    <option value="3">3 Questions</option>
+                    <option value="5">5 Questions</option>
+                    <option value="10">10 Questions</option>
+                    <option value="999">No Elimination</option>
+                </select>
+            </div>
+            <button id="confirm-creation-btn">Open Lobby & Get Code</button>
+            <button id="back-to-main-menu-btn" class="secondary-btn">Back to Main Menu</button>
+        </div>
 
         <div id="lobby-screen" class="screen">
             <h2>Lobby</h2>
@@ -381,27 +406,6 @@
             <div id="game-code-display" class="game-code" title="Click to copy">XXXXXX</div>
             <h3>Players (<span id="player-count">1</span>/4)</h3>
             <div id="lobby-player-list" class="player-list">
-            </div>
-            <div id="host-settings" style="display: none;">
-                <h3>Host Settings</h3>
-                <div class="input-group" style="text-align: left; margin-top: 1rem;">
-                    <label for="time-limit-select">Time Per Question:</label>
-                    <select id="time-limit-select" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background-color: #0f0f4b; color: white; border: 1px solid var(--accent-gold);">
-                        <option value="10">10 Seconds</option>
-                        <option value="15">15 Seconds</option>
-                        <option value="20">20 Seconds</option>
-                        <option value="30">30 Seconds</option>
-                    </select>
-                </div>
-                <div class="input-group" style="text-align: left; margin-top: 1rem;">
-                    <label for="elim-threshold-select">Eliminate Player After:</label>
-                    <select id="elim-threshold-select" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background-color: #0f0f4b; color: white; border: 1px solid var(--accent-gold);">
-                        <option value="3">3 Questions</option>
-                        <option value="5">5 Questions</option>
-                        <option value="10">10 Questions</option>
-                        <option value="999">No Elimination</option>
-                    </select>
-                </div>
             </div>
             <button id="start-game-btn" style="display: none;">Start Game</button>
         </div>
@@ -449,6 +453,7 @@
             auth: document.getElementById('auth-screen'),
             profileSetup: document.getElementById('profile-setup-screen'),
             mainMenu: document.getElementById('main-menu-screen'),
+            hostSetup: document.getElementById('host-setup-screen'), // New screen
             lobby: document.getElementById('lobby-screen'),
             game: document.getElementById('game-screen'),
             endGame: document.getElementById('end-game-screen'),
@@ -472,16 +477,18 @@
         const joinGameBtn = document.getElementById('join-game-btn');
         const welcomeMessage = document.getElementById('welcome-message');
         const menuError = document.getElementById('menu-error');
+        
+        // Host Setup
+        const confirmCreationBtn = document.getElementById('confirm-creation-btn');
+        const backToMainMenuBtn = document.getElementById('back-to-main-menu-btn');
+        const timeLimitSelect = document.getElementById('time-limit-select');
+        const elimThresholdSelect = document.getElementById('elim-threshold-select');
 
         // Lobby
         const gameCodeDisplay = document.getElementById('game-code-display');
         const lobbyPlayerList = document.getElementById('lobby-player-list');
         const playerCount = document.getElementById('player-count');
-        const hostSettings = document.getElementById('host-settings');
         const startGameBtn = document.getElementById('start-game-btn');
-        // ADDED: Host settings controls
-        const timeLimitSelect = document.getElementById('time-limit-select');
-        const elimThresholdSelect = document.getElementById('elim-threshold-select');
 
         // Game & End Game
         const gameTimer = document.getElementById('game-timer');
@@ -589,26 +596,15 @@
                 .eq('id', user.id)
                 .single();
 
-            if (user.is_anonymous) {
-                // For anonymous users, if they don't have a profile, send them to create one.
-                if (error && error.code === 'PGRST116') {
-                    showScreen('profileSetup');
-                } else if (data) {
-                    userProfile = data;
-                    welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
-                    showScreen('mainMenu');
-                }
-            } else {
-                // For regular users, same logic.
-                if (error && error.code === 'PGRST116') { // Not found
-                    showScreen('profileSetup');
-                } else if (data) {
-                    userProfile = data;
-                    welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
-                    showScreen('mainMenu');
-                } else if (error) {
-                     displayError(authError, 'Error fetching profile.');
-                }
+            // For both regular and guest users, if they don't have a profile, send them to create one.
+            if (error && error.code === 'PGRST116') { // Not found
+                showScreen('profileSetup');
+            } else if (data) {
+                userProfile = data;
+                welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
+                showScreen('mainMenu');
+            } else if (error) {
+                displayError(authError, 'Error fetching profile.');
             }
         }
 
@@ -657,7 +653,7 @@
             return Math.random().toString(36).substring(2, 8).toUpperCase();
         }
 
-        async function handleCreateGame() {
+        async function confirmAndCreateGame() {
             clearError(menuError);
             const newPlayer = {
                 id: currentUser.id,
@@ -667,21 +663,24 @@
                 is_eliminated: false,
             };
 
-            const joinCode = generateJoinCode();
+            const gameSettings = {
+                host_id: currentUser.id,
+                state: 'lobby',
+                players: [newPlayer],
+                join_code: generateJoinCode(),
+                question_time_limit: parseInt(timeLimitSelect.value, 10),
+                elim_threshold: parseInt(elimThresholdSelect.value, 10),
+            };
 
             const { data, error } = await dbClient
                 .from('game_sessions')
-                .insert({
-                    host_id: currentUser.id,
-                    state: 'lobby',
-                    players: [newPlayer],
-                    join_code: joinCode,
-                })
+                .insert(gameSettings)
                 .select()
                 .single();
 
             if (error) {
                 displayError(menuError, 'Could not create game: ' + error.message);
+                showScreen('mainMenu'); // Go back to menu on error
             } else {
                 currentGameId = data.id;
                 await subscribeToGameChannel(data.id);
@@ -689,7 +688,7 @@
             }
         }
 
-        // UPDATED/FIXED handleJoinGame function
+        // REWRITTEN to use the secure database function
         async function handleJoinGame() {
             const code = joinCodeInput.value.toUpperCase();
             if (code.length !== 6) {
@@ -698,86 +697,21 @@
             }
             clearError(menuError);
 
-            const { data: game, error } = await dbClient
-                .from('game_sessions')
-                .select('*')
-                .eq('join_code', code)
-                .single();
+            // Call the secure 'join_game' function in the database
+            const { data, error } = await dbClient.rpc('join_game', {
+                join_code_to_find: code
+            });
 
-            if (error || !game) {
-                displayError(menuError, 'Game not found.');
-                return;
-            }
-
-            if (game.state !== 'lobby') {
-                displayError(menuError, 'This game has already started.');
-                return;
-            }
-
-            if (game.players.length >= 4) {
-                displayError(menuError, 'This lobby is full.');
-                return;
-            }
-
-            if (game.players.some(p => p.id === currentUser.id)) {
-                currentGameId = game.id;
-                await subscribeToGameChannel(game.id);
-                showScreen('lobby');
-                return;
-            }
-
-            const newPlayer = {
-                id: currentUser.id,
-                username: userProfile.username,
-                avatar_url: userProfile.avatar_url,
-                score: 0,
-                is_eliminated: false,
-            };
-
-            const updatedPlayers = [...game.players, newPlayer];
-
-            const { error: updateError } = await dbClient
-                .from('game_sessions')
-                .update({ players: updatedPlayers })
-                .eq('id', game.id);
-
-            if (updateError) {
-                displayError(menuError, 'Could not join game: ' + updateError.message);
+            if (error) {
+                displayError(menuError, error.message);
             } else {
-                currentGameId = game.id;
-                
-                // --- FIX STARTS HERE ---
-                // 1. Manually update the local game session object
-                currentGameSession = game;
-                currentGameSession.players.push(newPlayer);
-
-                // 2. Immediately update the UI with this new local data
-                updateUIFromGameState();
-                // --- FIX ENDS HERE ---
-                
-                await subscribeToGameChannel(game.id); // Subscription now keeps it in sync
-                showScreen('lobby'); // Now we show the already updated screen
+                currentGameId = data.id;
+                currentGameSession = data; // The function returns the full game state
+                await subscribeToGameChannel(data.id);
+                showScreen('lobby');
             }
         }
         
-        // ADDED: Function to handle host setting changes
-        async function handleHostSettingChange() {
-            // Ensure only the host can trigger this
-            if (!currentGameSession || currentUser.id !== currentGameSession.host_id) return;
-
-            const newTimeLimit = parseInt(timeLimitSelect.value, 10);
-            const newElimThreshold = parseInt(elimThresholdSelect.value, 10);
-
-            // Update the database. The realtime subscription will handle updating everyone's UI.
-            await dbClient
-                .from('game_sessions')
-                .update({
-                    question_time_limit: newTimeLimit,
-                    elim_threshold: newElimThreshold,
-                })
-                .eq('id', currentGameId);
-        }
-
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
 
@@ -807,47 +741,35 @@
                 })
                 .subscribe();
 
-            // Fetch initial state
+            // Fetch initial state just to be sure
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
             currentGameSession = data;
             updateUIFromGameState();
         }
         
-        // UPDATED: Function to sync UI, now including host settings
         function updateUIFromGameState() {
             if (!currentGameSession) return;
 
-            const currentState = screens.game.classList.contains('active') ? 'game' : 
-                                 screens.lobby.classList.contains('active') ? 'lobby' :
-                                 screens.endGame.classList.contains('active') ? 'endGame' : 'menu';
+            const currentState = document.querySelector('.screen.active').id;
 
             // Update based on state
             if (currentGameSession.state === 'lobby') {
-                if(currentState !== 'lobby') showScreen('lobby');
+                if(currentState !== 'lobby-screen') showScreen('lobby');
                 gameCodeDisplay.textContent = currentGameSession.join_code;
                 renderPlayerList(lobbyPlayerList, currentGameSession.players);
                 
-                // Sync host settings display for all players
-                timeLimitSelect.value = currentGameSession.question_time_limit;
-                elimThresholdSelect.value = currentGameSession.elim_threshold;
-
                 const isHost = currentUser.id === currentGameSession.host_id;
-                // Only the host can change the settings
-                timeLimitSelect.disabled = !isHost;
-                elimThresholdSelect.disabled = !isHost;
-
-                hostSettings.style.display = 'block'; // Always show settings, but disable for non-hosts
-                startGameBtn.style.display = isHost && currentGameSession.players.length >= 2 ? 'block' : 'none';
-                startGameBtn.disabled = currentGameSession.players.length < 2;
+                startGameBtn.style.display = isHost && currentGameSession.players.length > 1 ? 'block' : 'none';
+                startGameBtn.disabled = currentGameSession.players.length < 2; // Should be 2 or more to start
             }
             else if (currentGameSession.state === 'in_game') {
-                if(currentState !== 'game') showScreen('game');
+                if(currentState !== 'game-screen') showScreen('game');
                 renderPlayerList(gamePlayerList, currentGameSession.players);
                 // TODO: Display current question based on `current_question_index`
                 // TODO: Start the timer
             }
             else if (currentGameSession.state === 'finished') {
-                if(currentState !== 'endGame') showScreen('endGame');
+                if(currentState !== 'end-game-screen') showScreen('endGame');
                 // TODO: Determine and display winner
             }
         }
@@ -860,19 +782,21 @@
         emailSignupBtn.addEventListener('click', handleEmailSignup);
         emailLoginBtn.addEventListener('click', handleEmailLogin);
         saveProfileBtn.addEventListener('click', handleSaveProfile);
-        createGameBtn.addEventListener('click', handleCreateGame);
+        
+        // Updated and new listeners
+        createGameBtn.addEventListener('click', () => showScreen('hostSetup'));
+        backToMainMenuBtn.addEventListener('click', () => showScreen('mainMenu'));
+        confirmCreationBtn.addEventListener('click', confirmAndCreateGame);
+        
         joinGameBtn.addEventListener('click', handleJoinGame);
         startGameBtn.addEventListener('click', handleStartGame);
+        
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent)
                 .then(() => alert('Game code copied!'));
         });
         playAgainBtn.addEventListener('click', () => showScreen('mainMenu'));
         
-        // ADDED: Event listeners for host settings
-        timeLimitSelect.addEventListener('change', handleHostSettingChange);
-        elimThresholdSelect.addEventListener('change', handleHostSettingChange);
-
         // Initial check on page load
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
