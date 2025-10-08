@@ -381,10 +381,28 @@
             <div id="game-code-display" class="game-code" title="Click to copy">XXXXXX</div>
             <h3>Players (<span id="player-count">1</span>/4)</h3>
             <div id="lobby-player-list" class="player-list">
-                </div>
+            </div>
             <div id="host-settings" style="display: none;">
                 <h3>Host Settings</h3>
-                 </div>
+                <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                    <label for="time-limit-select">Time Per Question:</label>
+                    <select id="time-limit-select" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background-color: #0f0f4b; color: white; border: 1px solid var(--accent-gold);">
+                        <option value="10">10 Seconds</option>
+                        <option value="15">15 Seconds</option>
+                        <option value="20">20 Seconds</option>
+                        <option value="30">30 Seconds</option>
+                    </select>
+                </div>
+                <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                    <label for="elim-threshold-select">Eliminate Player After:</label>
+                    <select id="elim-threshold-select" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; background-color: #0f0f4b; color: white; border: 1px solid var(--accent-gold);">
+                        <option value="3">3 Questions</option>
+                        <option value="5">5 Questions</option>
+                        <option value="10">10 Questions</option>
+                        <option value="999">No Elimination</option>
+                    </select>
+                </div>
+            </div>
             <button id="start-game-btn" style="display: none;">Start Game</button>
         </div>
 
@@ -417,7 +435,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnR1Y3dod2xpYWZmd2NhZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTcyODcsImV4cCI6MjA3NTQ5MzI4N30.iMJdU_oR3yUX1izWGIVs_NkxiW0OZ-tfyvbA9jfeyvc';
 
         // ===============================================
-        //         SUPABASE CLIENT INITIALIZATION
+        //          SUPABASE CLIENT INITIALIZATION
         // ===============================================
         const { createClient } = supabase;
         const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -461,6 +479,9 @@
         const playerCount = document.getElementById('player-count');
         const hostSettings = document.getElementById('host-settings');
         const startGameBtn = document.getElementById('start-game-btn');
+        // ADDED: Host settings controls
+        const timeLimitSelect = document.getElementById('time-limit-select');
+        const elimThresholdSelect = document.getElementById('elim-threshold-select');
 
         // Game & End Game
         const gameTimer = document.getElementById('game-timer');
@@ -482,7 +503,7 @@
 
 
         // ===============================================
-        //                 UI FUNCTIONS
+        //                UI FUNCTIONS
         // ===============================================
         function showScreen(screenName) {
             Object.values(screens).forEach(screen => screen.classList.remove('active'));
@@ -525,13 +546,13 @@
         }
 
         // ===============================================
-        //              AUTHENTICATION LOGIC
+        //            AUTHENTICATION LOGIC
         // ===============================================
         async function handleGoogleLogin() {
             const { error } = await dbClient.auth.signInWithOAuth({ 
                 provider: 'google',
                 options: {
-                    redirectTo: 'https://themiddlemannnn.github.io/hardguess'
+                    redirectTo: window.location.href // Redirect back to the current page
                 }
             });
             if (error) displayError(authError, error.message);
@@ -603,7 +624,7 @@
         });
 
         // ===============================================
-        //                 PROFILE LOGIC
+        //                PROFILE LOGIC
         // ===============================================
         async function handleSaveProfile() {
             const username = usernameInput.value.trim();
@@ -668,6 +689,7 @@
             }
         }
 
+        // UPDATED/FIXED handleJoinGame function
         async function handleJoinGame() {
             const code = joinCodeInput.value.toUpperCase();
             if (code.length !== 6) {
@@ -688,7 +710,7 @@
             }
 
             if (game.state !== 'lobby') {
-                 displayError(menuError, 'This game has already started.');
+                displayError(menuError, 'This game has already started.');
                 return;
             }
 
@@ -697,9 +719,7 @@
                 return;
             }
 
-            // Check if user is already in the lobby
             if (game.players.some(p => p.id === currentUser.id)) {
-                // User is already in, just subscribe and show lobby
                 currentGameId = game.id;
                 await subscribeToGameChannel(game.id);
                 showScreen('lobby');
@@ -725,9 +745,37 @@
                 displayError(menuError, 'Could not join game: ' + updateError.message);
             } else {
                 currentGameId = game.id;
-                await subscribeToGameChannel(game.id);
-                showScreen('lobby');
+                
+                // --- FIX STARTS HERE ---
+                // 1. Manually update the local game session object
+                currentGameSession = game;
+                currentGameSession.players.push(newPlayer);
+
+                // 2. Immediately update the UI with this new local data
+                updateUIFromGameState();
+                // --- FIX ENDS HERE ---
+                
+                await subscribeToGameChannel(game.id); // Subscription now keeps it in sync
+                showScreen('lobby'); // Now we show the already updated screen
             }
+        }
+        
+        // ADDED: Function to handle host setting changes
+        async function handleHostSettingChange() {
+            // Ensure only the host can trigger this
+            if (!currentGameSession || currentUser.id !== currentGameSession.host_id) return;
+
+            const newTimeLimit = parseInt(timeLimitSelect.value, 10);
+            const newElimThreshold = parseInt(elimThresholdSelect.value, 10);
+
+            // Update the database. The realtime subscription will handle updating everyone's UI.
+            await dbClient
+                .from('game_sessions')
+                .update({
+                    question_time_limit: newTimeLimit,
+                    elim_threshold: newElimThreshold,
+                })
+                .eq('id', currentGameId);
         }
 
         async function handleStartGame() {
@@ -764,7 +812,8 @@
             currentGameSession = data;
             updateUIFromGameState();
         }
-
+        
+        // UPDATED: Function to sync UI, now including host settings
         function updateUIFromGameState() {
             if (!currentGameSession) return;
 
@@ -777,9 +826,17 @@
                 if(currentState !== 'lobby') showScreen('lobby');
                 gameCodeDisplay.textContent = currentGameSession.join_code;
                 renderPlayerList(lobbyPlayerList, currentGameSession.players);
+                
+                // Sync host settings display for all players
+                timeLimitSelect.value = currentGameSession.question_time_limit;
+                elimThresholdSelect.value = currentGameSession.elim_threshold;
 
                 const isHost = currentUser.id === currentGameSession.host_id;
-                hostSettings.style.display = isHost ? 'block' : 'none';
+                // Only the host can change the settings
+                timeLimitSelect.disabled = !isHost;
+                elimThresholdSelect.disabled = !isHost;
+
+                hostSettings.style.display = 'block'; // Always show settings, but disable for non-hosts
                 startGameBtn.style.display = isHost && currentGameSession.players.length >= 2 ? 'block' : 'none';
                 startGameBtn.disabled = currentGameSession.players.length < 2;
             }
@@ -796,7 +853,7 @@
         }
 
         // ===============================================
-        //                EVENT LISTENERS
+        //               EVENT LISTENERS
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
@@ -811,6 +868,10 @@
                 .then(() => alert('Game code copied!'));
         });
         playAgainBtn.addEventListener('click', () => showScreen('mainMenu'));
+        
+        // ADDED: Event listeners for host settings
+        timeLimitSelect.addEventListener('change', handleHostSettingChange);
+        elimThresholdSelect.addEventListener('change', handleHostSettingChange);
 
         // Initial check on page load
         (async () => {
