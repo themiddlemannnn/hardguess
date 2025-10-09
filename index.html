@@ -298,6 +298,15 @@
         .avatar-upload {
             margin: 0.5rem 0;
         }
+        /* 🔥 MOBILE FOCUS FIX */
+        @media (pointer: coarse) {
+            .answer-btn:focus,
+            .answer-btn:active {
+                outline: none !important;
+                box-shadow: none !important;
+                border-color: var(--accent-gold) !important;
+            }
+        }
         @media (max-height: 700px) {
             h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
             h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
@@ -666,7 +675,7 @@
                 }
                 if (error.code === '23505') {
                     if (attempt < 2) {
-                        await new Promise(r => setTimeout(r, 500)); // brief delay before retry
+                        await new Promise(r => setTimeout(r, 500));
                         continue;
                     }
                     displayError(profileError, 'Username is already taken.');
@@ -687,7 +696,6 @@
             if (settingsAvatarInput.files[0]) {
                 avatarUrl = await uploadAvatar(settingsAvatarInput.files[0], currentUser.id);
             }
-            // Retry on username conflict
             for (let attempt = 0; attempt < 3; attempt++) {
                 const { error } = await dbClient.from('users').update({ 
                     username: newUsername,
@@ -721,13 +729,16 @@
         }
         async function confirmAndCreateGame() {
             try {
+                const { data: freshUser } = await dbClient.from('users').select('avatar_url, username').eq('id', currentUser.id).single();
+                const avatar_url = freshUser?.avatar_url || null;
+                const username = freshUser?.username || userProfile?.username || 'Player';
                 const gameSettings = { 
                     host_id: currentUser.id, 
                     state: 'lobby', 
                     players: [{
                         id: currentUser.id, 
-                        username: userProfile.username, 
-                        avatar_url: userProfile.avatar_url, 
+                        username: username,
+                        avatar_url: avatar_url, 
                         score: 0, 
                         is_eliminated: false
                     }], 
@@ -766,6 +777,14 @@
                 if (error) {
                     displayError(menuError, error.message || 'Could not join game.');
                 } else { 
+                    // Fetch latest avatar
+                    const { data: freshUser } = await dbClient.from('users').select('avatar_url').eq('id', currentUser.id).single();
+                    if (freshUser?.avatar_url) {
+                        const playerIndex = data.players.findIndex(p => p.id === currentUser.id);
+                        if (playerIndex >= 0) {
+                            data.players[playerIndex].avatar_url = freshUser.avatar_url;
+                        }
+                    }
                     currentGameId = data.id; 
                     currentGameSession = data; 
                     sessionStorage.setItem('activeGameId', data.id); 
@@ -932,12 +951,11 @@
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
             if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
-            // 🔥 CRITICAL MOBILE FIX: remove focus/active state
+            // 🔥 MOBILE FOCUS FIX: prevent focus retention
             document.querySelectorAll('.answer-btn').forEach(btn => {
                 btn.disabled = true;
                 btn.style.pointerEvents = 'none';
-                btn.blur(); // remove focus
-                btn.classList.remove('selected');
+                btn.blur();
             });
             selectedButton.classList.add('selected');
             try {
@@ -975,18 +993,26 @@
         }
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
-            // 🔥 FULL RESET OF ANSWER BUTTONS + MOBILE FOCUS CLEANUP
             const answerButtons = document.querySelectorAll('.answer-btn');
             answerButtons.forEach(btn => { 
                 btn.disabled = false; 
                 btn.style.pointerEvents = 'auto';
                 btn.classList.remove('selected', 'correct', 'incorrect');
-                btn.blur(); // remove any lingering focus
+                btn.blur();
             });
-            // Force blur active element if it's an answer button
+            // 🔥 CRITICAL: Remove focus from any active element
             if (document.activeElement?.classList.contains('answer-btn')) {
                 document.activeElement.blur();
             }
+            // Prevent focus on touch
+            const preventFocus = (e) => {
+                if (e.target.closest('.answer-btn')) {
+                    e.preventDefault();
+                }
+            };
+            answersGrid.removeEventListener('touchstart', preventFocus);
+            answersGrid.addEventListener('touchstart', preventFocus, { passive: false });
+
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
