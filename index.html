@@ -8,7 +8,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <style>
         :root {
             --bg-dark-blue: #02022b;
@@ -74,7 +73,6 @@
         .screen.active {
             display: flex;
         }
-        
         .screen::-webkit-scrollbar {
             width: 6px;
         }
@@ -89,7 +87,6 @@
         .screen::-webkit-scrollbar-thumb:hover {
             background: var(--accent-gold);
         }
-
         h1, h2, h3 {
             text-align: center;
             margin-bottom: 0.75rem;
@@ -102,7 +99,6 @@
         h1 { font-size: clamp(1.5rem, 5vw, 2.2rem); }
         h2 { font-size: clamp(1.3rem, 4vw, 1.8rem); }
         h3 { font-size: clamp(1rem, 3vw, 1.2rem); color: var(--text-light); }
-
         .input-group { margin-bottom: 0.75rem; flex-shrink: 0; }
         .input-group label { display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }
         input, select {
@@ -143,7 +139,6 @@
         button.secondary-btn { background: transparent; color: var(--accent-gold); border: 2px solid var(--accent-gold); box-shadow: none; }
         button.secondary-btn:hover { background: var(--accent-gold); color: var(--primary-black); }
         .error-message { color: var(--error-red); text-align: center; margin-top: 0.75rem; display: none; font-size: 0.9rem; flex-shrink: 0; }
-
         #lobby-screen .game-code {
             font-size: clamp(1.5rem, 6vw, 2.5rem);
             font-weight: 700;
@@ -180,6 +175,7 @@
             border: 3px solid var(--accent-gold); 
             margin-bottom: 0.5rem; 
             background-color: var(--bg-dark-blue); 
+            object-fit: cover;
         }
         .player-card p { 
             font-weight: 600; 
@@ -188,7 +184,6 @@
             font-size: clamp(0.75rem, 2vw, 0.9rem); 
         }
         .host-badge { position: absolute; top: 5px; right: 5px; font-size: 1.2rem; }
-        
         #game-screen .timer { 
             width: clamp(60px, 15vw, 80px); 
             height: clamp(60px, 15vw, 80px); 
@@ -228,7 +223,6 @@
         @media (min-width: 600px) { 
             .answers { grid-template-columns: 1fr 1fr; } 
         }
-
         .answer-btn { 
             position: relative; 
             padding: 0.75rem 0.75rem 0.75rem 3rem; 
@@ -258,10 +252,8 @@
         .answer-btn.incorrect { background-color: var(--error-red) !important; border-color: var(--error-red) !important; color: #fff !important; }
         .answer-btn:disabled { background-color: var(--locked-grey); border-color: var(--locked-grey); color: #aaa; cursor: not-allowed; }
         .answer-btn:disabled::before { color: #aaa; }
-        
         .player-card.current-user-glow img { animation: pulse-gold 2s infinite; }
         @keyframes pulse-gold { 0% { box-shadow: 0 0 5px var(--accent-gold-darker); } 50% { box-shadow: 0 0 20px var(--accent-gold); } 100% { box-shadow: 0 0 5px var(--accent-gold-darker); } }
-
         #main-menu-screen { position: relative; }
         #settings-btn { 
             position: absolute; 
@@ -279,7 +271,6 @@
         }
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
         #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; font-size: clamp(0.9rem, 2.5vw, 1rem); }
-
         .notification-banner {
             background: linear-gradient(135deg, var(--accent-gold-darker), var(--accent-gold));
             color: var(--primary-black);
@@ -290,12 +281,23 @@
             font-weight: 700;
             animation: slideDown 0.3s ease-out;
         }
-
         @keyframes slideDown {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-gold);
+            margin: 0 auto 1rem;
+            background-color: var(--bg-dark-blue);
+            object-fit: cover;
+            display: block;
+        }
+        .avatar-upload {
+            margin: 0.5rem 0;
+        }
         @media (max-height: 700px) {
             h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
             h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
@@ -309,7 +311,6 @@
             .player-list { gap: 0.5rem; margin-bottom: 0.75rem; }
             .player-card { padding: 0.5rem; }
         }
-
         @media (max-height: 600px) {
             body { padding: 0.25rem; }
             .container { border-radius: 15px; max-height: calc(100vh - 0.5rem); }
@@ -320,7 +321,6 @@
             #game-screen .timer { width: 55px; height: 55px; font-size: 1.6rem; }
             .player-card img { width: 35px; height: 35px; }
         }
-
         @media (max-height: 500px) and (orientation: landscape) {
             .container { max-height: calc(100vh - 0.25rem); }
             .screen { padding: 0.5rem; }
@@ -355,9 +355,13 @@
             <button id="email-signup-btn" class="secondary-btn">Sign Up</button>
             <p id="auth-error" class="error-message"></p>
         </div>
-
         <div id="profile-setup-screen" class="screen">
             <h2>Set Up Your Profile</h2>
+            <img id="avatar-preview" class="avatar-preview" src="https://api.dicebear.com/8.x/bottts/svg?seed=default" alt="Avatar preview">
+            <div class="input-group avatar-upload">
+                <label for="avatar-input">Profile Picture (optional)</label>
+                <input type="file" id="avatar-input" accept="image/*">
+            </div>
             <div class="input-group">
                 <label for="username-input">Username (3-20 characters)</label>
                 <input type="text" id="username-input" placeholder="Enter a unique username">
@@ -365,7 +369,6 @@
             <button id="save-profile-btn">Save and Continue</button>
             <p id="profile-error" class="error-message"></p>
         </div>
-
         <div id="main-menu-screen" class="screen">
             <button id="settings-btn">⚙️</button>
             <h2 id="welcome-message">Welcome!</h2>
@@ -376,9 +379,13 @@
             <button id="join-game-btn" class="secondary-btn">Join Game</button>
             <p id="menu-error" class="error-message"></p>
         </div>
-
         <div id="settings-screen" class="screen">
             <h2>Settings</h2>
+            <img id="settings-avatar-preview" class="avatar-preview" src="https://api.dicebear.com/8.x/bottts/svg?seed=default" alt="Avatar preview">
+            <div class="input-group avatar-upload">
+                <label for="settings-avatar-input">Change Profile Picture</label>
+                <input type="file" id="settings-avatar-input" accept="image/*">
+            </div>
             <div class="input-group">
                 <label for="update-username-input">Update Username</label>
                 <input type="text" id="update-username-input">
@@ -387,7 +394,6 @@
             <button id="back-to-menu-from-settings-btn" class="secondary-btn">Back to Menu</button>
             <p id="settings-error" class="error-message"></p>
         </div>
-        
         <div id="host-setup-screen" class="screen">
             <h2>Create Your Game</h2>
             <h3>Set the rules for this match</h3>
@@ -396,7 +402,6 @@
             <button id="confirm-creation-btn">Open Lobby & Get Code</button>
             <button id="back-to-main-menu-btn" class="secondary-btn">Back to Main Menu</button>
         </div>
-
         <div id="lobby-screen" class="screen">
             <h2>Lobby</h2>
             <p style="text-align: center; margin-bottom: 0.5rem; font-size: 0.9rem;">Share this code with your friends:</p>
@@ -405,7 +410,6 @@
             <div id="lobby-player-list" class="player-list"></div>
             <button id="start-game-btn" style="display: none;">Start Game</button>
         </div>
-
         <div id="game-screen" class="screen">
             <div id="notification-area"></div>
             <div id="game-timer" class="timer">--</div>
@@ -420,7 +424,6 @@
             <div id="game-player-list" class="player-list" style="margin-top:0.75rem;"></div>
             <button id="quit-game-btn" class="secondary-btn" style="margin-top:0.75rem;">Quit Game</button>
         </div>
-
         <div id="end-game-screen" class="screen">
             <h1>Game Over!</h1>
             <h2 id="winner-announcement"></h2>
@@ -432,7 +435,6 @@
             </div>
         </div>
     </div>
-
     <script type="module">
         // ===============================================
         //             SUPABASE & APP SETUP
@@ -441,7 +443,6 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnR1Y3dod2xpYWZmd2NhZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTcyODcsImV4cCI6MjA3NTQ5MzI4N30.iMJdU_oR3yUX1izWGIVs_NkxiW0OZ-tfyvbA9jfeyvc';
         const { createClient } = supabase;
         const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
         // ===============================================
         //                   DOM ELEMENTS
         // ===============================================
@@ -455,7 +456,6 @@
             game: document.getElementById('game-screen'), 
             endGame: document.getElementById('end-game-screen') 
         };
-        
         const googleLoginBtn = document.getElementById('google-login-btn');
         const guestLoginBtn = document.getElementById('guest-login-btn');
         const emailInput = document.getElementById('email-input');
@@ -464,6 +464,8 @@
         const emailSignupBtn = document.getElementById('email-signup-btn');
         const authError = document.getElementById('auth-error');
         const usernameInput = document.getElementById('username-input');
+        const avatarInput = document.getElementById('avatar-input');
+        const avatarPreview = document.getElementById('avatar-preview');
         const saveProfileBtn = document.getElementById('save-profile-btn');
         const profileError = document.getElementById('profile-error');
         const createGameBtn = document.getElementById('create-game-btn');
@@ -473,6 +475,8 @@
         const menuError = document.getElementById('menu-error');
         const settingsBtn = document.getElementById('settings-btn');
         const updateUsernameInput = document.getElementById('update-username-input');
+        const settingsAvatarInput = document.getElementById('settings-avatar-input');
+        const settingsAvatarPreview = document.getElementById('settings-avatar-preview');
         const saveSettingsBtn = document.getElementById('save-settings-btn');
         const backToMenuFromSettingsBtn = document.getElementById('back-to-menu-from-settings-btn');
         const settingsError = document.getElementById('settings-error');
@@ -495,7 +499,6 @@
         const playAgainBtn = document.getElementById('play-again-btn');
         const endMainMenuBtn = document.getElementById('end-main-menu-btn');
         const notificationArea = document.getElementById('notification-area');
-
         // ===============================================
         //                APPLICATION STATE
         // ===============================================
@@ -511,7 +514,6 @@
         let heartbeatInterval = null;
         let lastKnownPlayers = [];
         let notifiedOfflinePlayers = new Set();
-
         // ===============================================
         //                 UI FUNCTIONS
         // ===============================================
@@ -519,53 +521,73 @@
             Object.values(screens).forEach(s => s.classList.remove('active')); 
             if(screens[screenName]) screens[screenName].classList.add('active'); 
         }
-        
         function displayError(el, msg) { 
             el.textContent = msg; 
             el.style.display = 'block'; 
         }
-        
         function clearError(el) { 
             el.textContent = ''; 
             el.style.display = 'none'; 
         }
-
         function showNotification(message, duration = 3000) {
             const notification = document.createElement('div');
             notification.className = 'notification-banner';
             notification.textContent = message;
             notificationArea.appendChild(notification);
-            
             setTimeout(() => {
                 notification.style.opacity = '0';
                 notification.style.transform = 'translateY(-20px)';
                 setTimeout(() => notification.remove(), 300);
             }, duration);
         }
-        
         function renderPlayerList(container, players) {
             if (!container || !players) return;
             container.innerHTML = players.map(player => {
                 const isCurrentUser = player.id === currentUser?.id;
                 const isHost = player.id === currentGameSession?.host_id;
+                const avatarUrl = player.avatar_url || `https://api.dicebear.com/8.x/bottts/svg?seed=${player.username}`;
                 return `
                 <div class="player-card ${isCurrentUser ? 'current-user-glow' : ''}">
                     ${isHost ? '<span class="host-badge">👑</span>' : ''}
-                    <img src="${player.avatar_url || `https://api.dicebear.com/8.x/bottts/svg?seed=${player.username}`}" alt="avatar">
+                    <img src="${avatarUrl}" alt="avatar">
                     <p>${player.username}</p>
                     <p>Score: ${player.score || 0}</p>
                 </div>`;
             }).join('');
             if (playerCount) playerCount.textContent = players.length;
         }
-
+        // ===============================================
+        //             AVATAR HANDLING
+        // ===============================================
+        function previewImage(input, previewElement) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => previewElement.src = e.target.result;
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        async function uploadAvatar(file, userId) {
+            if (!file) return null;
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${userId}/${Date.now()}.${fileExt}`;
+            const { error } = await dbClient.storage.from('avatars').upload(fileName, file, {
+                upsert: true
+            });
+            if (error) {
+                console.error('Avatar upload error:', error);
+                return null;
+            }
+            const { data } = dbClient.storage.from('avatars').getPublicUrl(fileName);
+            return data.publicUrl;
+        }
+        avatarInput.addEventListener('change', () => previewImage(avatarInput, avatarPreview));
+        settingsAvatarInput.addEventListener('change', () => previewImage(settingsAvatarInput, settingsAvatarPreview));
         // ===============================================
         //             AUTHENTICATION & PROFILE
         // ===============================================
         async function handleGoogleLogin() {
             clearError(authError);
             const redirectUrl = 'https://themiddlemannnn.github.io/hardguess';
-            
             const { error } = await dbClient.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
@@ -578,7 +600,6 @@
                 console.error('Google OAuth error:', error);
             }
         }
-        
         async function handleGuestLogin() {
             clearError(authError);
             try {
@@ -595,7 +616,6 @@
                 console.error('Guest login exception:', err);
             }
         }
-        
         async function checkUserProfile(user) {
             const { data, error } = await dbClient.from('users').select('*').eq('id', user.id).single();
             if (error && error.code === 'PGRST116') {
@@ -603,12 +623,14 @@
             } else if (data) {
                 userProfile = data;
                 welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
+                if (userProfile.avatar_url) {
+                    settingsAvatarPreview.src = userProfile.avatar_url;
+                }
                 await checkForActiveGame();
             } else if (error) {
                 displayError(authError, 'Error fetching profile.');
             }
         }
-        
         dbClient.auth.onAuthStateChange((event, session) => {
             if (event === 'SIGNED_IN' && session) { 
                 currentUser = session.user; 
@@ -620,7 +642,6 @@
                 showScreen('auth'); 
             }
         });
-        
         async function handleSaveProfile() {
             const username = usernameInput.value.trim();
             if (username.length < 3 || username.length > 20) { 
@@ -628,21 +649,33 @@
                 return; 
             }
             clearError(profileError);
-            const { error } = await dbClient.from('users').insert({ 
-                id: currentUser.id, 
-                username: username 
-            });
-            if (error) { 
-                if (error.code === '23505') {
-                    displayError(profileError, 'Username is already taken.'); 
-                } else {
-                    displayError(profileError, 'Error saving profile.'); 
+            let avatarUrl = null;
+            if (avatarInput.files[0]) {
+                avatarUrl = await uploadAvatar(avatarInput.files[0], currentUser.id);
+            }
+            // Retry up to 3 times on uniqueness conflict
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const { error } = await dbClient.from('users').insert({ 
+                    id: currentUser.id, 
+                    username: username,
+                    avatar_url: avatarUrl
+                });
+                if (!error) {
+                    checkUserProfile(currentUser);
+                    return;
                 }
-            } else {
-                checkUserProfile(currentUser);
+                if (error.code === '23505') {
+                    if (attempt < 2) {
+                        await new Promise(r => setTimeout(r, 500)); // brief delay before retry
+                        continue;
+                    }
+                    displayError(profileError, 'Username is already taken.');
+                } else {
+                    displayError(profileError, 'Error saving profile.');
+                }
+                return;
             }
         }
-        
         async function handleSaveSettings() {
             const newUsername = updateUsernameInput.value.trim();
             if (newUsername.length < 3 || newUsername.length > 20) { 
@@ -650,29 +683,42 @@
                 return; 
             }
             clearError(settingsError);
-            const { error } = await dbClient.from('users').update({ 
-                username: newUsername 
-            }).eq('id', currentUser.id);
-            if (error) { 
-                if (error.code === '23505') {
-                    displayError(settingsError, 'Username is already taken.'); 
-                } else {
-                    displayError(settingsError, 'Error saving changes.'); 
+            let avatarUrl = userProfile.avatar_url;
+            if (settingsAvatarInput.files[0]) {
+                avatarUrl = await uploadAvatar(settingsAvatarInput.files[0], currentUser.id);
+            }
+            // Retry on username conflict
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const { error } = await dbClient.from('users').update({ 
+                    username: newUsername,
+                    avatar_url: avatarUrl
+                }).eq('id', currentUser.id);
+                if (!error) {
+                    userProfile.username = newUsername;
+                    userProfile.avatar_url = avatarUrl;
+                    welcomeMessage.textContent = `Welcome, ${newUsername}!`;
+                    if (avatarUrl) settingsAvatarPreview.src = avatarUrl;
+                    showScreen('mainMenu');
+                    return;
                 }
-            } else { 
-                userProfile.username = newUsername; 
-                welcomeMessage.textContent = `Welcome, ${newUsername}!`; 
-                showScreen('mainMenu'); 
+                if (error.code === '23505') {
+                    if (attempt < 2) {
+                        await new Promise(r => setTimeout(r, 500));
+                        continue;
+                    }
+                    displayError(settingsError, 'Username is already taken.');
+                } else {
+                    displayError(settingsError, 'Error saving changes.');
+                }
+                return;
             }
         }
-
         // ===============================================
         //                GAME/LOBBY LOGIC
         // ===============================================
         function generateJoinCode() { 
             return Math.random().toString(36).substring(2, 8).toUpperCase(); 
         }
-        
         async function confirmAndCreateGame() {
             try {
                 const gameSettings = { 
@@ -706,7 +752,6 @@
                 showScreen('mainMenu');
             }
         }
-        
         async function handleJoinGame() {
             const code = joinCodeInput.value.trim().toUpperCase();
             if (code.length !== 6) { 
@@ -714,7 +759,6 @@
                 return; 
             }
             clearError(menuError);
-            
             try {
                 const { data, error } = await dbClient.rpc('join_game', { 
                     join_code_to_find: code 
@@ -733,10 +777,8 @@
                 displayError(menuError, 'Network error. Please try again.');
             }
         }
-        
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
-            
             try {
                 const { data: qIds, error } = await dbClient.from('questions').select('id');
                 if (error || !qIds || qIds.length === 0) { 
@@ -755,7 +797,6 @@
                 alert("Failed to start game. Please try again.");
             }
         }
-        
         async function handlePlayAgain() {
             if (currentUser.id !== currentGameSession?.host_id) {
                 playAgainBtn.textContent = "Waiting for Host...";
@@ -766,11 +807,9 @@
                 game_id_to_update: currentGameId 
             });
         }
-
         async function subscribeToGameChannel(gameId) {
             if (gameChannel) dbClient.removeChannel(gameChannel);
             if (presenceChannel) dbClient.removeChannel(presenceChannel);
-            
             gameChannel = dbClient.channel(`game-${gameId}`)
                 .on('postgres_changes', { 
                     event: '*', 
@@ -782,8 +821,6 @@
                     updateUIFromGameState();
                 })
                 .subscribe();
-            
-            // Setup presence tracking
             presenceChannel = dbClient.channel(`presence-${gameId}`)
                 .on('presence', { event: 'sync' }, () => {
                     const state = presenceChannel.presenceState();
@@ -798,8 +835,6 @@
                         });
                     }
                 });
-            
-            // Send heartbeat every 5 seconds
             clearInterval(heartbeatInterval);
             heartbeatInterval = setInterval(() => {
                 if (presenceChannel) {
@@ -810,12 +845,10 @@
                     });
                 }
             }, 5000);
-            
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
             if (data) { 
                 currentGameSession = data;
                 lastKnownPlayers = [...data.players];
-                // Reset notification tracker for new game session
                 notifiedOfflinePlayers.clear();
                 updateUIFromGameState(); 
             } else { 
@@ -823,7 +856,6 @@
                 showScreen('mainMenu'); 
             }
         }
-        
         async function checkForActiveGame() {
             const activeGameId = sessionStorage.getItem('activeGameId');
             if (activeGameId) { 
@@ -832,31 +864,20 @@
                 showScreen('mainMenu');
             }
         }
-
         // ===============================================
         //               CORE GAMEPLAY LOOP
         // ===============================================
         function checkPlayerPresence(presenceState) {
             if (!currentGameSession || currentGameSession.state === 'finished') return;
-            
             const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
             const offlinePlayers = currentGameSession.players.filter(p => !onlineUserIds.includes(p.id));
-            
             if (offlinePlayers.length > 0 && currentGameSession.state === 'in_game') {
-                // Check for new offline players only
                 const newOfflinePlayers = offlinePlayers.filter(p => !notifiedOfflinePlayers.has(p.id));
-                
                 if (newOfflinePlayers.length > 0) {
                     const offlineNames = newOfflinePlayers.map(p => p.username).join(', ');
                     const remainingPlayers = currentGameSession.players.length - offlinePlayers.length;
-                    
-                    // Mark these players as notified
                     newOfflinePlayers.forEach(p => notifiedOfflinePlayers.add(p.id));
-                    
-                    // Show notification
                     showNotification(`${offlineNames} left the game`);
-                    
-                    // Only force menu return if 1 or fewer players remain
                     if (remainingPlayers <= 1) {
                         setTimeout(() => {
                             if (confirm(`Not enough players to continue. Return to main menu?`)) {
@@ -867,21 +888,18 @@
                 }
             }
         }
-        
         async function handleQuitGame() {
             clearInterval(timerInterval);
             clearInterval(heartbeatInterval);
             if (gameChannel) dbClient.removeChannel(gameChannel);
             if (presenceChannel) await presenceChannel.untrack();
             if (presenceChannel) dbClient.removeChannel(presenceChannel);
-            
             if (currentGameId && currentGameSession) {
                 await dbClient.rpc('leave_game', { 
                     game_id_to_leave: currentGameId, 
                     user_id_leaving: currentUser.id 
                 });
             }
-            
             currentGameId = null;
             currentGameSession = null;
             gameChannel = null;
@@ -891,46 +909,37 @@
             sessionStorage.removeItem('activeGameId');
             showScreen('mainMenu');
         }
-        
         function startRoundTimer() {
             clearInterval(timerInterval);
             const startTime = new Date(currentGameSession.round_start_time).getTime();
             const timeLimit = currentGameSession.question_time_limit * 1000;
-            
             roundInProgress = true;
             let lastTimeLeft = null;
-
             timerInterval = setInterval(() => {
                 const now = Date.now();
                 const elapsed = now - startTime;
                 const timeLeft = Math.max(0, Math.ceil((timeLimit - elapsed) / 1000));
-                
                 if (timeLeft !== lastTimeLeft) {
                     gameTimer.textContent = timeLeft;
                     lastTimeLeft = timeLeft;
                 }
-                
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     revealAnswers(); 
                 }
             }, 100);
         }
-
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
             if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
-            
-            // Prevent any further interactions
+            // 🔥 CRITICAL MOBILE FIX: remove focus/active state
             document.querySelectorAll('.answer-btn').forEach(btn => {
                 btn.disabled = true;
                 btn.style.pointerEvents = 'none';
-                // Force remove focus and active states on mobile
-                btn.blur();
+                btn.blur(); // remove focus
+                btn.classList.remove('selected');
             });
-            
             selectedButton.classList.add('selected');
-            
             try {
                 await dbClient.rpc('submit_answer', { 
                     game_id_to_update: currentGameId, 
@@ -940,24 +949,19 @@
                 console.error('Error submitting answer:', error);
             }
         }
-        
         async function revealAnswers() {
             roundInProgress = false;
             clearInterval(timerInterval);
             document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
-            
             const selectedButton = answersGrid.querySelector('.answer-btn.selected');
             const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
-
             if (correctButton) {
                 correctButton.classList.add('correct');
             }
             if (selectedButton && selectedButton.dataset.option !== currentCorrectAnswer) {
                 selectedButton.classList.add('incorrect');
             }
-
             await new Promise(resolve => setTimeout(resolve, 3000));
-            
             if (currentUser.id === currentGameSession.host_id) {
                 const {error} = await dbClient.rpc('advance_round', { 
                     game_id_to_update: currentGameId 
@@ -969,34 +973,24 @@
                 }
             }
         }
-
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
-            
-            // CRITICAL FIX: Clear all previous answer states completely and remove focus
+            // 🔥 FULL RESET OF ANSWER BUTTONS + MOBILE FOCUS CLEANUP
             const answerButtons = document.querySelectorAll('.answer-btn');
             answerButtons.forEach(btn => { 
                 btn.disabled = false; 
                 btn.style.pointerEvents = 'auto';
                 btn.classList.remove('selected', 'correct', 'incorrect');
-                btn.style.backgroundColor = '';
-                btn.style.borderColor = '';
-                btn.style.color = '';
-                // Critical for mobile: remove focus/active states
-                btn.blur();
+                btn.blur(); // remove any lingering focus
             });
-            
-            // Force remove any active element focus
-            if (document.activeElement && document.activeElement.classList.contains('answer-btn')) {
+            // Force blur active element if it's an answer button
+            if (document.activeElement?.classList.contains('answer-btn')) {
                 document.activeElement.blur();
             }
-            
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
-            
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
             questionText.textContent = 'Loading...';
-            
             try {
                 const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
                 if (error || !question) { 
@@ -1004,22 +998,18 @@
                     console.error('Question load error:', error);
                     return; 
                 }
-                
                 questionText.textContent = question.question_text;
                 answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
                 answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
                 answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
                 answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
-                
                 currentCorrectAnswer = question.correct_answer_key;
-                
                 startRoundTimer();
             } catch (error) {
                 console.error('Exception loading question:', error);
                 questionText.textContent = "Error loading question.";
             }
         }
-
         function displayEndGameResults() {
             const sortedPlayers = [...currentGameSession.players].sort((a, b) => b.score - a.score);
             const winner = sortedPlayers[0];
@@ -1033,16 +1023,13 @@
                 playAgainBtn.textContent = "Waiting for Host to Start Rematch";
             }
         }
-
         function updateUIFromGameState() {
             if (!currentGameSession) return;
             const activeScreenId = document.querySelector('.screen.active')?.id;
             const isHost = currentUser.id === currentGameSession.host_id;
-
             if (currentGameSession.state !== 'in_game' && timerInterval) {
                 clearInterval(timerInterval);
             }
-
             if (currentGameSession.state === 'lobby') {
                 if (activeScreenId !== 'lobby-screen') showScreen('lobby');
                 gameCodeDisplay.textContent = currentGameSession.join_code;
@@ -1062,13 +1049,11 @@
                 displayEndGameResults();
             }
         }
-
         // ===============================================
         //                EVENT LISTENERS
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
-        
         emailSignupBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
@@ -1084,7 +1069,6 @@
                 displayError(authError, 'Check your email to confirm your account!');
             }
         });
-        
         emailLoginBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
@@ -1096,10 +1080,12 @@
             const { error } = await dbClient.auth.signInWithPassword({ email, password });
             if (error) displayError(authError, error.message);
         });
-        
         saveProfileBtn.addEventListener('click', handleSaveProfile);
         settingsBtn.addEventListener('click', () => { 
             updateUsernameInput.value = userProfile.username; 
+            if (userProfile.avatar_url) {
+                settingsAvatarPreview.src = userProfile.avatar_url;
+            }
             showScreen('settings'); 
         });
         saveSettingsBtn.addEventListener('click', handleSaveSettings);
@@ -1120,7 +1106,6 @@
                 handleQuitGame();
             }
         });
-        
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
                 const originalCode = gameCodeDisplay.textContent;
@@ -1130,14 +1115,11 @@
                 }, 1500);
             });
         });
-
-        // Cleanup on page unload
         window.addEventListener('beforeunload', async () => {
             clearInterval(timerInterval);
             clearInterval(heartbeatInterval);
             if (presenceChannel) await presenceChannel.untrack();
         });
-        
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session) { 
