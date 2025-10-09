@@ -598,6 +598,9 @@
                 await checkForActiveGame();
             } else if (error) {
                 displayError(authError, 'Error fetching profile.');
+            } else {
+                // Failsafe in case no profile and no error
+                showScreen('profileSetup');
             }
         }
         
@@ -754,10 +757,14 @@
                     filter: `id=eq.${gameId}` 
                 }, payload => {
                     const oldPlayers = currentGameSession ? [...currentGameSession.players] : [];
-                    const newPlayers = payload.new.players || [];
+                    const newGameData = payload.new;
+
+                    if (!newGameData) return; // Ignore delete events for now
+
+                    const newPlayers = newGameData.players || [];
                     
                     // Update the state first
-                    currentGameSession = payload.new;
+                    currentGameSession = newGameData;
 
                     // Check for leavers and notify
                     if (oldPlayers.length > newPlayers.length) {
@@ -830,8 +837,10 @@
             clearInterval(timerInterval);
             clearInterval(heartbeatInterval);
             if (gameChannel) await dbClient.removeChannel(gameChannel);
-            if (presenceChannel) await presenceChannel.untrack();
-            if (presenceChannel) await dbClient.removeChannel(presenceChannel);
+            if (presenceChannel) {
+                 await presenceChannel.untrack();
+                 await dbClient.removeChannel(presenceChannel);
+            }
             
             if (currentGameId) {
                 await dbClient.rpc('leave_game', { 
@@ -1061,12 +1070,23 @@
             if (presenceChannel) await presenceChannel.untrack();
         });
         
-        // Initial load
+        // ===============================================
+        //                 INITIAL LOAD
+        // ===============================================
         (async () => {
-            const { data: { session } } = await dbClient.auth.getSession();
-            if (session) { 
-                currentUser = session.user;
-                await checkUserProfile(session.user); 
+            // FIX: This block is now more robust and won't crash on network errors.
+            const { data, error } = await dbClient.auth.getSession();
+
+            if (error) {
+                console.error("Error getting session on startup:", error.message);
+                showScreen('auth');
+                displayError(authError, "Couldn't connect to the server. Please refresh.");
+                return;
+            }
+
+            if (data && data.session) {
+                currentUser = data.session.user;
+                await checkUserProfile(data.session.user);
             } else {
                 showScreen('auth');
             }
