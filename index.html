@@ -998,48 +998,48 @@
             }
         }
         async function displayCurrentQuestion() {
-            if (!currentGameSession || !currentGameSession.question_ids) return;
-            const answerButtons = document.querySelectorAll('.answer-btn');
+    if (!currentGameSession || !currentGameSession.question_ids) return;
+    const answerButtons = document.querySelectorAll('.answer-btn');
 
-            // 🔥 FULL CLEAN SLATE: disable + reset + blur
-            answerButtons.forEach(btn => { 
-                btn.disabled = true; // disable first
-                btn.classList.remove('selected', 'correct', 'incorrect');
-                btn.blur(); // remove focus (critical for mobile)
-            });
+    // 🔥 FULL CLEAN SLATE: disable + reset + blur
+    answerButtons.forEach(btn => { 
+        btn.disabled = true; // disable first
+        btn.classList.remove('selected', 'correct', 'incorrect');
+        btn.blur(); // remove focus (critical for mobile)
+    });
 
-            const qIndex = currentGameSession.current_question_index;
-            const questionId = currentGameSession.question_ids[qIndex];
-            questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
-            questionText.textContent = 'Loading...';
-            try {
-                const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
-                if (error || !question) { 
-                    questionText.textContent = "Error loading question."; 
-                    console.error('Question load error:', error);
-                    return; 
-                }
-                questionText.textContent = question.question_text;
-                answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
-                answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
-                answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
-                answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
-                currentCorrectAnswer = question.correct_answer_key;
-
-                // Re-enable buttons after content is set (with tiny delay for safety)
-                setTimeout(() => {
-                    answerButtons.forEach(btn => {
-                        btn.disabled = false;
-                    });
-                    startRoundTimer();
-                }, 30);
-            } catch (error) {
-                console.error('Exception loading question:', error);
-                questionText.textContent = "Error loading question.";
-                // Still re-enable in case of error
-                answerButtons.forEach(btn => btn.disabled = false);
-            }
+    const qIndex = currentGameSession.current_question_index;
+    const questionId = currentGameSession.question_ids[qIndex];
+    questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
+    questionText.textContent = 'Loading...';
+    try {
+        const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
+        if (error || !question) { 
+            questionText.textContent = "Error loading question."; 
+            console.error('Question load error:', error);
+            return; 
         }
+        questionText.textContent = question.question_text;
+        answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
+        answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
+        answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
+        answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+        currentCorrectAnswer = question.correct_answer_key;
+
+        // Re-enable buttons after content is set (with tiny delay for safety)
+        setTimeout(() => {
+            answerButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+            startRoundTimer();
+        }, 30);
+    } catch (error) {
+        console.error('Exception loading question:', error);
+        questionText.textContent = "Error loading question.";
+        // Still re-enable in case of error
+        answerButtons.forEach(btn => btn.disabled = false);
+    }
+}
         function displayEndGameResults() {
             const sortedPlayers = [...currentGameSession.players].sort((a, b) => b.score - a.score);
             const winner = sortedPlayers[0];
