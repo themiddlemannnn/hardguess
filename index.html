@@ -398,9 +398,13 @@
             <p id="question-number" style="text-align:center; margin-bottom: 0.75rem; font-size: clamp(0.9rem, 2.5vw, 1rem);">Question 1/10</p>
             <h2 id="question-text" class="question">Waiting for host to start...</h2>
             <div id="answers-grid" class="answers">
-                <button class="answer-btn" data-option="a">A)</button><button class="answer-btn" data-option="b">B)</button><button class="answer-btn" data-option="c">C)</button><button class="answer-btn" data-option="d">D)</button>
+                <button class="answer-btn" data-option="a">A)</button>
+                <button class="answer-btn" data-option="b">B)</button>
+                <button class="answer-btn" data-option="c">C)</button>
+                <button class="answer-btn" data-option="d">D)</button>
             </div>
             <div id="game-player-list" class="player-list" style="margin-top:0.75rem;"></div>
+            <button id="quit-game-btn" class="secondary-btn" style="margin-top:0.75rem;">Quit Game</button>
         </div>
 
         <div id="end-game-screen" class="screen">
@@ -427,26 +431,88 @@
         // ===============================================
         //                   DOM ELEMENTS
         // ===============================================
-        const screens = { auth: document.getElementById('auth-screen'), profileSetup: document.getElementById('profile-setup-screen'), mainMenu: document.getElementById('main-menu-screen'), settings: document.getElementById('settings-screen'), hostSetup: document.getElementById('host-setup-screen'), lobby: document.getElementById('lobby-screen'), game: document.getElementById('game-screen'), endGame: document.getElementById('end-game-screen') };
-        const googleLoginBtn = document.getElementById('google-login-btn'); const guestLoginBtn = document.getElementById('guest-login-btn'); const emailInput = document.getElementById('email-input'); const passwordInput = document.getElementById('password-input'); const emailLoginBtn = document.getElementById('email-login-btn'); const emailSignupBtn = document.getElementById('email-signup-btn'); const authError = document.getElementById('auth-error'); const usernameInput = document.getElementById('username-input'); const saveProfileBtn = document.getElementById('save-profile-btn'); const profileError = document.getElementById('profile-error');
-        const createGameBtn = document.getElementById('create-game-btn'); const joinCodeInput = document.getElementById('join-code-input'); const joinGameBtn = document.getElementById('join-game-btn'); const welcomeMessage = document.getElementById('welcome-message'); const menuError = document.getElementById('menu-error'); const settingsBtn = document.getElementById('settings-btn');
-        const updateUsernameInput = document.getElementById('update-username-input'); const saveSettingsBtn = document.getElementById('save-settings-btn'); const backToMenuFromSettingsBtn = document.getElementById('back-to-menu-from-settings-btn'); const settingsError = document.getElementById('settings-error');
-        const confirmCreationBtn = document.getElementById('confirm-creation-btn'); const backToMainMenuBtn = document.getElementById('back-to-main-menu-btn'); const timeLimitSelect = document.getElementById('time-limit-select'); const elimThresholdSelect = document.getElementById('elim-threshold-select');
-        const gameCodeDisplay = document.getElementById('game-code-display'); const lobbyPlayerList = document.getElementById('lobby-player-list'); const playerCount = document.getElementById('player-count'); const startGameBtn = document.getElementById('start-game-btn');
-        const gameTimer = document.getElementById('game-timer'); const questionNumber = document.getElementById('question-number'); const questionText = document.getElementById('question-text'); const answersGrid = document.getElementById('answers-grid'); const gamePlayerList = document.getElementById('game-player-list');
-        const winnerAnnouncement = document.getElementById('winner-announcement'); const finalScores = document.getElementById('final-scores'); const playAgainBtn = document.getElementById('play-again-btn'); const endMainMenuBtn = document.getElementById('end-main-menu-btn');
+        const screens = { 
+            auth: document.getElementById('auth-screen'), 
+            profileSetup: document.getElementById('profile-setup-screen'), 
+            mainMenu: document.getElementById('main-menu-screen'), 
+            settings: document.getElementById('settings-screen'), 
+            hostSetup: document.getElementById('host-setup-screen'), 
+            lobby: document.getElementById('lobby-screen'), 
+            game: document.getElementById('game-screen'), 
+            endGame: document.getElementById('end-game-screen') 
+        };
+        
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const guestLoginBtn = document.getElementById('guest-login-btn');
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        const emailLoginBtn = document.getElementById('email-login-btn');
+        const emailSignupBtn = document.getElementById('email-signup-btn');
+        const authError = document.getElementById('auth-error');
+        const usernameInput = document.getElementById('username-input');
+        const saveProfileBtn = document.getElementById('save-profile-btn');
+        const profileError = document.getElementById('profile-error');
+        const createGameBtn = document.getElementById('create-game-btn');
+        const joinCodeInput = document.getElementById('join-code-input');
+        const joinGameBtn = document.getElementById('join-game-btn');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const menuError = document.getElementById('menu-error');
+        const settingsBtn = document.getElementById('settings-btn');
+        const updateUsernameInput = document.getElementById('update-username-input');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const backToMenuFromSettingsBtn = document.getElementById('back-to-menu-from-settings-btn');
+        const settingsError = document.getElementById('settings-error');
+        const confirmCreationBtn = document.getElementById('confirm-creation-btn');
+        const backToMainMenuBtn = document.getElementById('back-to-main-menu-btn');
+        const timeLimitSelect = document.getElementById('time-limit-select');
+        const elimThresholdSelect = document.getElementById('elim-threshold-select');
+        const gameCodeDisplay = document.getElementById('game-code-display');
+        const lobbyPlayerList = document.getElementById('lobby-player-list');
+        const playerCount = document.getElementById('player-count');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const gameTimer = document.getElementById('game-timer');
+        const questionNumber = document.getElementById('question-number');
+        const questionText = document.getElementById('question-text');
+        const answersGrid = document.getElementById('answers-grid');
+        const gamePlayerList = document.getElementById('game-player-list');
+        const quitGameBtn = document.getElementById('quit-game-btn');
+        const winnerAnnouncement = document.getElementById('winner-announcement');
+        const finalScores = document.getElementById('final-scores');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const endMainMenuBtn = document.getElementById('end-main-menu-btn');
 
         // ===============================================
         //                APPLICATION STATE
         // ===============================================
-        let currentUser = null, userProfile = null, currentGameId = null, currentGameSession = null, gameChannel = null, timerInterval = null, currentCorrectAnswer = null, roundInProgress = false;
+        let currentUser = null;
+        let userProfile = null;
+        let currentGameId = null;
+        let currentGameSession = null;
+        let gameChannel = null;
+        let timerInterval = null;
+        let currentCorrectAnswer = null;
+        let roundInProgress = false;
+        let presenceChannel = null;
+        let heartbeatInterval = null;
 
         // ===============================================
         //                 UI FUNCTIONS
         // ===============================================
-        function showScreen(screenName) { Object.values(screens).forEach(s => s.classList.remove('active')); if(screens[screenName]) screens[screenName].classList.add('active'); }
-        function displayError(el, msg) { el.textContent = msg; el.style.display = 'block'; }
-        function clearError(el) { el.textContent = ''; el.style.display = 'none'; }
+        function showScreen(screenName) { 
+            Object.values(screens).forEach(s => s.classList.remove('active')); 
+            if(screens[screenName]) screens[screenName].classList.add('active'); 
+        }
+        
+        function displayError(el, msg) { 
+            el.textContent = msg; 
+            el.style.display = 'block'; 
+        }
+        
+        function clearError(el) { 
+            el.textContent = ''; 
+            el.style.display = 'none'; 
+        }
+        
         function renderPlayerList(container, players) {
             if (!container || !players) return;
             container.innerHTML = players.map(player => {
@@ -502,118 +568,323 @@
         
         async function checkUserProfile(user) {
             const { data, error } = await dbClient.from('users').select('*').eq('id', user.id).single();
-            if (error && error.code === 'PGRST116') showScreen('profileSetup');
-            else if (data) {
+            if (error && error.code === 'PGRST116') {
+                showScreen('profileSetup');
+            } else if (data) {
                 userProfile = data;
                 welcomeMessage.textContent = `Welcome, ${userProfile.username}!`;
                 await checkForActiveGame();
-            } else if (error) displayError(authError, 'Error fetching profile.');
+            } else if (error) {
+                displayError(authError, 'Error fetching profile.');
+            }
         }
+        
         dbClient.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session) { currentUser = session.user; checkUserProfile(currentUser); }
-            else if (event === 'SIGNED_OUT') { currentUser = null; userProfile = null; sessionStorage.removeItem('activeGameId'); showScreen('auth'); }
+            if (event === 'SIGNED_IN' && session) { 
+                currentUser = session.user; 
+                checkUserProfile(currentUser); 
+            } else if (event === 'SIGNED_OUT') { 
+                currentUser = null; 
+                userProfile = null; 
+                sessionStorage.removeItem('activeGameId'); 
+                showScreen('auth'); 
+            }
         });
+        
         async function handleSaveProfile() {
             const username = usernameInput.value.trim();
-            if (username.length < 3 || username.length > 20) { displayError(profileError, 'Username must be 3-20 characters.'); return; }
+            if (username.length < 3 || username.length > 20) { 
+                displayError(profileError, 'Username must be 3-20 characters.'); 
+                return; 
+            }
             clearError(profileError);
-            const { error } = await dbClient.from('users').insert({ id: currentUser.id, username: username });
-            if (error) { if (error.code === '23505') displayError(profileError, 'Username is already taken.'); else displayError(profileError, 'Error saving profile.'); }
-            else checkUserProfile(currentUser);
+            const { error } = await dbClient.from('users').insert({ 
+                id: currentUser.id, 
+                username: username 
+            });
+            if (error) { 
+                if (error.code === '23505') {
+                    displayError(profileError, 'Username is already taken.'); 
+                } else {
+                    displayError(profileError, 'Error saving profile.'); 
+                }
+            } else {
+                checkUserProfile(currentUser);
+            }
         }
+        
         async function handleSaveSettings() {
             const newUsername = updateUsernameInput.value.trim();
-            if (newUsername.length < 3 || newUsername.length > 20) { displayError(settingsError, 'Username must be 3-20 characters.'); return; }
+            if (newUsername.length < 3 || newUsername.length > 20) { 
+                displayError(settingsError, 'Username must be 3-20 characters.'); 
+                return; 
+            }
             clearError(settingsError);
-            const { error } = await dbClient.from('users').update({ username: newUsername }).eq('id', currentUser.id);
-            if (error) { if (error.code === '23505') displayError(settingsError, 'Username is already taken.'); else displayError(settingsError, 'Error saving changes.'); }
-            else { userProfile.username = newUsername; welcomeMessage.textContent = `Welcome, ${newUsername}!`; showScreen('mainMenu'); }
+            const { error } = await dbClient.from('users').update({ 
+                username: newUsername 
+            }).eq('id', currentUser.id);
+            if (error) { 
+                if (error.code === '23505') {
+                    displayError(settingsError, 'Username is already taken.'); 
+                } else {
+                    displayError(settingsError, 'Error saving changes.'); 
+                }
+            } else { 
+                userProfile.username = newUsername; 
+                welcomeMessage.textContent = `Welcome, ${newUsername}!`; 
+                showScreen('mainMenu'); 
+            }
         }
 
         // ===============================================
         //                GAME/LOBBY LOGIC
         // ===============================================
-        function generateJoinCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
+        function generateJoinCode() { 
+            return Math.random().toString(36).substring(2, 8).toUpperCase(); 
+        }
+        
         async function confirmAndCreateGame() {
-            const gameSettings = { host_id: currentUser.id, state: 'lobby', players: [{id: currentUser.id, username: userProfile.username, avatar_url: userProfile.avatar_url, score: 0, is_eliminated: false}], join_code: generateJoinCode(), question_time_limit: parseInt(timeLimitSelect.value, 10), elim_threshold: parseInt(elimThresholdSelect.value, 10) };
-            const { data, error } = await dbClient.from('game_sessions').insert(gameSettings).select().single();
-            if (error) { displayError(menuError, 'Could not create game.'); showScreen('mainMenu'); }
-            else { currentGameId = data.id; sessionStorage.setItem('activeGameId', data.id); await subscribeToGameChannel(data.id); showScreen('lobby'); }
+            try {
+                const gameSettings = { 
+                    host_id: currentUser.id, 
+                    state: 'lobby', 
+                    players: [{
+                        id: currentUser.id, 
+                        username: userProfile.username, 
+                        avatar_url: userProfile.avatar_url, 
+                        score: 0, 
+                        is_eliminated: false
+                    }], 
+                    join_code: generateJoinCode(), 
+                    question_time_limit: parseInt(timeLimitSelect.value, 10), 
+                    elim_threshold: parseInt(elimThresholdSelect.value, 10) 
+                };
+                const { data, error } = await dbClient.from('game_sessions').insert(gameSettings).select().single();
+                if (error) { 
+                    displayError(menuError, 'Could not create game. Please try again.'); 
+                    console.error('Game creation error:', error);
+                    showScreen('mainMenu'); 
+                } else { 
+                    currentGameId = data.id; 
+                    sessionStorage.setItem('activeGameId', data.id); 
+                    await subscribeToGameChannel(data.id); 
+                    showScreen('lobby'); 
+                }
+            } catch (error) {
+                console.error('Exception creating game:', error);
+                displayError(menuError, 'Network error. Please try again.');
+                showScreen('mainMenu');
+            }
         }
+        
         async function handleJoinGame() {
-            const code = joinCodeInput.value.toUpperCase();
-            if (code.length !== 6) { displayError(menuError, 'Please enter a valid 6-digit code.'); return; }
+            const code = joinCodeInput.value.trim().toUpperCase();
+            if (code.length !== 6) { 
+                displayError(menuError, 'Please enter a valid 6-digit code.'); 
+                return; 
+            }
             clearError(menuError);
-            const { data, error } = await dbClient.rpc('join_game', { join_code_to_find: code });
-            if (error) displayError(menuError, error.message);
-            else { currentGameId = data.id; currentGameSession = data; sessionStorage.setItem('activeGameId', data.id); await subscribeToGameChannel(data.id); showScreen('lobby'); }
+            
+            try {
+                const { data, error } = await dbClient.rpc('join_game', { 
+                    join_code_to_find: code 
+                });
+                if (error) {
+                    displayError(menuError, error.message || 'Could not join game.');
+                } else { 
+                    currentGameId = data.id; 
+                    currentGameSession = data; 
+                    sessionStorage.setItem('activeGameId', data.id); 
+                    await subscribeToGameChannel(data.id); 
+                    showScreen('lobby'); 
+                }
+            } catch (error) {
+                console.error('Exception joining game:', error);
+                displayError(menuError, 'Network error. Please try again.');
+            }
         }
+        
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
-            const { data: qIds, error } = await dbClient.from('questions').select('id');
-            if (error || !qIds || qIds.length === 0) { alert("Error: Could not fetch questions."); return; }
-            const gameQuestionIds = qIds.map(q => q.id).sort(() => 0.5 - Math.random()).slice(0, 10);
-            await dbClient.from('game_sessions').update({ state: 'in_game', current_question_index: 0, question_ids: gameQuestionIds, round_start_time: new Date().toISOString() }).eq('id', currentGameId);
+            
+            try {
+                const { data: qIds, error } = await dbClient.from('questions').select('id');
+                if (error || !qIds || qIds.length === 0) { 
+                    alert("Error: Could not fetch questions. Please try again."); 
+                    return; 
+                }
+                const gameQuestionIds = qIds.map(q => q.id).sort(() => 0.5 - Math.random()).slice(0, 10);
+                await dbClient.from('game_sessions').update({ 
+                    state: 'in_game', 
+                    current_question_index: 0, 
+                    question_ids: gameQuestionIds, 
+                    round_start_time: new Date().toISOString() 
+                }).eq('id', currentGameId);
+            } catch (error) {
+                console.error('Error starting game:', error);
+                alert("Failed to start game. Please try again.");
+            }
         }
+        
         async function handlePlayAgain() {
             if (currentUser.id !== currentGameSession?.host_id) {
                 playAgainBtn.textContent = "Waiting for Host...";
                 playAgainBtn.disabled = true;
                 return;
             }
-            await dbClient.rpc('reset_game', { game_id_to_update: currentGameId });
+            await dbClient.rpc('reset_game', { 
+                game_id_to_update: currentGameId 
+            });
         }
 
         async function subscribeToGameChannel(gameId) {
             if (gameChannel) dbClient.removeChannel(gameChannel);
-            gameChannel = dbClient.channel(`game-${gameId}`).on('postgres_changes', { event: '*', schema: 'public', table: 'game_sessions', filter: `id=eq.${gameId}` }, payload => {
-                currentGameSession = payload.new;
-                updateUIFromGameState();
-            }).subscribe();
+            if (presenceChannel) dbClient.removeChannel(presenceChannel);
+            
+            gameChannel = dbClient.channel(`game-${gameId}`)
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'game_sessions', 
+                    filter: `id=eq.${gameId}` 
+                }, payload => {
+                    currentGameSession = payload.new;
+                    updateUIFromGameState();
+                })
+                .subscribe();
+            
+            // Setup presence tracking
+            presenceChannel = dbClient.channel(`presence-${gameId}`)
+                .on('presence', { event: 'sync' }, () => {
+                    const state = presenceChannel.presenceState();
+                    checkPlayerPresence(state);
+                })
+                .subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        await presenceChannel.track({
+                            user_id: currentUser.id,
+                            username: userProfile.username,
+                            online_at: new Date().toISOString()
+                        });
+                    }
+                });
+            
+            // Send heartbeat every 5 seconds
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(() => {
+                if (presenceChannel) {
+                    presenceChannel.track({
+                        user_id: currentUser.id,
+                        username: userProfile.username,
+                        online_at: new Date().toISOString()
+                    });
+                }
+            }, 5000);
+            
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
-            if (data) { currentGameSession = data; updateUIFromGameState(); }
-            else { sessionStorage.removeItem('activeGameId'); showScreen('mainMenu'); }
+            if (data) { 
+                currentGameSession = data; 
+                updateUIFromGameState(); 
+            } else { 
+                sessionStorage.removeItem('activeGameId'); 
+                showScreen('mainMenu'); 
+            }
         }
         
         async function checkForActiveGame() {
             const activeGameId = sessionStorage.getItem('activeGameId');
-            if (activeGameId) { await subscribeToGameChannel(activeGameId); }
-            else if (!document.querySelector('.screen.active')) showScreen('mainMenu');
+            if (activeGameId) { 
+                await subscribeToGameChannel(activeGameId); 
+            } else if (!document.querySelector('.screen.active')) {
+                showScreen('mainMenu');
+            }
         }
 
         // ===============================================
         //               CORE GAMEPLAY LOOP
         // ===============================================
+        function checkPlayerPresence(presenceState) {
+            if (!currentGameSession || currentGameSession.state === 'finished') return;
+            
+            const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
+            const offlinePlayers = currentGameSession.players.filter(p => !onlineUserIds.includes(p.id));
+            
+            if (offlinePlayers.length > 0 && currentGameSession.state === 'in_game') {
+                const offlineNames = offlinePlayers.map(p => p.username).join(', ');
+                if (confirm(`Player(s) ${offlineNames} went offline. Return to main menu?`)) {
+                    handleQuitGame();
+                }
+            }
+        }
+        
+        async function handleQuitGame() {
+            clearInterval(timerInterval);
+            clearInterval(heartbeatInterval);
+            if (gameChannel) dbClient.removeChannel(gameChannel);
+            if (presenceChannel) await presenceChannel.untrack();
+            if (presenceChannel) dbClient.removeChannel(presenceChannel);
+            
+            if (currentGameId && currentGameSession) {
+                await dbClient.rpc('leave_game', { 
+                    game_id_to_leave: currentGameId, 
+                    user_id_leaving: currentUser.id 
+                });
+            }
+            
+            currentGameId = null;
+            currentGameSession = null;
+            gameChannel = null;
+            presenceChannel = null;
+            sessionStorage.removeItem('activeGameId');
+            showScreen('mainMenu');
+        }
+        
         function startRoundTimer() {
             clearInterval(timerInterval);
             const startTime = new Date(currentGameSession.round_start_time).getTime();
             const timeLimit = currentGameSession.question_time_limit * 1000;
             
             roundInProgress = true;
+            let lastTimeLeft = null;
 
             timerInterval = setInterval(() => {
-                const now = new Date().getTime();
+                const now = Date.now();
                 const elapsed = now - startTime;
                 const timeLeft = Math.max(0, Math.ceil((timeLimit - elapsed) / 1000));
-                gameTimer.textContent = timeLeft;
+                
+                if (timeLeft !== lastTimeLeft) {
+                    gameTimer.textContent = timeLeft;
+                    lastTimeLeft = timeLeft;
+                }
+                
                 if (timeLeft <= 0) {
                     clearInterval(timerInterval);
                     revealAnswers(); 
                 }
-            }, 500);
+            }, 100);
         }
 
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
             if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
             
-            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
+            document.querySelectorAll('.answer-btn').forEach(btn => {
+                btn.disabled = true;
+                btn.style.pointerEvents = 'none';
+            });
             selectedButton.classList.add('selected');
             
-            await dbClient.rpc('submit_answer', { game_id_to_update: currentGameId, answer_key: selectedButton.dataset.option });
+            try {
+                await dbClient.rpc('submit_answer', { 
+                    game_id_to_update: currentGameId, 
+                    answer_key: selectedButton.dataset.option 
+                });
+            } catch (error) {
+                console.error('Error submitting answer:', error);
+            }
         }
         
-        function revealAnswers() {
+        async function revealAnswers() {
             roundInProgress = false;
             clearInterval(timerInterval);
             document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
@@ -628,23 +899,29 @@
                 selectedButton.classList.add('incorrect');
             }
 
-            setTimeout(() => {
-                if (currentUser.id === currentGameSession.host_id) {
-                    dbClient.rpc('advance_round', { game_id_to_update: currentGameId })
-                        .then(({error}) => { 
-                            if(error) {
-                                console.error("Advance round error:", error.message);
-                                alert("Could not load the next question due to a network error. The game will try again in 5 seconds.");
-                                setTimeout(() => handleStartGame(), 5000); 
-                            }
-                        });
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            
+            if (currentUser.id === currentGameSession.host_id) {
+                const {error} = await dbClient.rpc('advance_round', { 
+                    game_id_to_update: currentGameId 
+                });
+                if(error) {
+                    console.error("Advance round error:", error.message);
+                    alert("Network error. Retrying...");
+                    setTimeout(() => revealAnswers(), 2000);
                 }
-            }, 4000);
+            }
         }
 
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
-            document.querySelectorAll('.answer-btn').forEach(btn => { btn.disabled = false; btn.classList.remove('selected', 'correct', 'incorrect'); });
+            
+            const answerButtons = document.querySelectorAll('.answer-btn');
+            answerButtons.forEach(btn => { 
+                btn.disabled = false; 
+                btn.style.pointerEvents = 'auto';
+                btn.classList.remove('selected', 'correct', 'incorrect'); 
+            });
             
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
@@ -652,28 +929,41 @@
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
             questionText.textContent = 'Loading...';
             
-            const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
-            if (error || !question) { questionText.textContent = "Error loading question."; return; }
-            
-            questionText.textContent = question.question_text;
-            answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
-            answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
-            answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
-            answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
-            
-            currentCorrectAnswer = question.correct_answer_key;
-            
-            startRoundTimer();
+            try {
+                const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
+                if (error || !question) { 
+                    questionText.textContent = "Error loading question."; 
+                    console.error('Question load error:', error);
+                    return; 
+                }
+                
+                questionText.textContent = question.question_text;
+                answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
+                answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
+                answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
+                answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+                
+                currentCorrectAnswer = question.correct_answer_key;
+                
+                startRoundTimer();
+            } catch (error) {
+                console.error('Exception loading question:', error);
+                questionText.textContent = "Error loading question.";
+            }
         }
 
         function displayEndGameResults() {
             const sortedPlayers = [...currentGameSession.players].sort((a, b) => b.score - a.score);
             const winner = sortedPlayers[0];
             winnerAnnouncement.textContent = `${winner.username} is the winner!`;
-            finalScores.innerHTML = sortedPlayers.map((p, i) => `<div class="score-row"><span>#${i + 1} ${p.username}</span><span>${p.score} pts</span></div>`).join('');
+            finalScores.innerHTML = sortedPlayers.map((p, i) => 
+                `<div class="score-row"><span>#${i + 1} ${p.username}</span><span>${p.score} pts</span></div>`
+            ).join('');
             playAgainBtn.textContent = "Play Again";
             playAgainBtn.disabled = false;
-            if (currentUser.id !== currentGameSession.host_id) playAgainBtn.textContent = "Waiting for Host to Start Rematch";
+            if (currentUser.id !== currentGameSession.host_id) {
+                playAgainBtn.textContent = "Waiting for Host to Start Rematch";
+            }
         }
 
         function updateUIFromGameState() {
@@ -710,25 +1000,40 @@
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
+        
         emailSignupBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
-            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
+            if (!email || !password) { 
+                displayError(authError, 'Please fill in all fields.'); 
+                return; 
+            }
             clearError(authError);
             const { error } = await dbClient.auth.signUp({ email, password });
-            if (error) displayError(authError, error.message);
-            else displayError(authError, 'Check your email to confirm your account!');
+            if (error) {
+                displayError(authError, error.message);
+            } else {
+                displayError(authError, 'Check your email to confirm your account!');
+            }
         });
+        
         emailLoginBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
-            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
+            if (!email || !password) { 
+                displayError(authError, 'Please fill in all fields.'); 
+                return; 
+            }
             clearError(authError);
             const { error } = await dbClient.auth.signInWithPassword({ email, password });
             if (error) displayError(authError, error.message);
         });
+        
         saveProfileBtn.addEventListener('click', handleSaveProfile);
-        settingsBtn.addEventListener('click', () => { updateUsernameInput.value = userProfile.username; showScreen('settings'); });
+        settingsBtn.addEventListener('click', () => { 
+            updateUsernameInput.value = userProfile.username; 
+            showScreen('settings'); 
+        });
         saveSettingsBtn.addEventListener('click', handleSaveSettings);
         backToMenuFromSettingsBtn.addEventListener('click', () => showScreen('mainMenu'));
         createGameBtn.addEventListener('click', () => showScreen('hostSetup'));
@@ -738,7 +1043,15 @@
         startGameBtn.addEventListener('click', handleStartGame);
         answersGrid.addEventListener('click', handleAnswerSelection);
         playAgainBtn.addEventListener('click', handlePlayAgain);
-        endMainMenuBtn.addEventListener('click', () => { sessionStorage.removeItem('activeGameId'); showScreen('mainMenu'); });
+        endMainMenuBtn.addEventListener('click', () => { 
+            sessionStorage.removeItem('activeGameId'); 
+            showScreen('mainMenu'); 
+        });
+        quitGameBtn.addEventListener('click', () => {
+            if (confirm('Are you sure you want to quit this game?')) {
+                handleQuitGame();
+            }
+        });
         
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
@@ -750,10 +1063,20 @@
             });
         });
 
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', async () => {
+            clearInterval(timerInterval);
+            clearInterval(heartbeatInterval);
+            if (presenceChannel) await presenceChannel.untrack();
+        });
+        
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
-            if (session) { await checkUserProfile(session.user); }
-            else showScreen('auth');
+            if (session) { 
+                await checkUserProfile(session.user); 
+            } else {
+                showScreen('auth');
+            }
         })();
     </script>
 </body>
