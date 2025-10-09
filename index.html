@@ -510,6 +510,7 @@
         let presenceChannel = null;
         let heartbeatInterval = null;
         let lastKnownPlayers = [];
+        let notifiedOfflinePlayers = new Set();
 
         // ===============================================
         //                 UI FUNCTIONS
@@ -814,6 +815,8 @@
             if (data) { 
                 currentGameSession = data;
                 lastKnownPlayers = [...data.players];
+                // Reset notification tracker for new game session
+                notifiedOfflinePlayers.clear();
                 updateUIFromGameState(); 
             } else { 
                 sessionStorage.removeItem('activeGameId'); 
@@ -840,19 +843,27 @@
             const offlinePlayers = currentGameSession.players.filter(p => !onlineUserIds.includes(p.id));
             
             if (offlinePlayers.length > 0 && currentGameSession.state === 'in_game') {
-                const offlineNames = offlinePlayers.map(p => p.username).join(', ');
-                const remainingPlayers = currentGameSession.players.length - offlinePlayers.length;
+                // Check for new offline players only
+                const newOfflinePlayers = offlinePlayers.filter(p => !notifiedOfflinePlayers.has(p.id));
                 
-                // Show notification
-                showNotification(`${offlineNames} left the game`);
-                
-                // Only force menu return if 1 or fewer players remain
-                if (remainingPlayers <= 1) {
-                    setTimeout(() => {
-                        if (confirm(`Not enough players to continue. Return to main menu?`)) {
-                            handleQuitGame();
-                        }
-                    }, 500);
+                if (newOfflinePlayers.length > 0) {
+                    const offlineNames = newOfflinePlayers.map(p => p.username).join(', ');
+                    const remainingPlayers = currentGameSession.players.length - offlinePlayers.length;
+                    
+                    // Mark these players as notified
+                    newOfflinePlayers.forEach(p => notifiedOfflinePlayers.add(p.id));
+                    
+                    // Show notification
+                    showNotification(`${offlineNames} left the game`);
+                    
+                    // Only force menu return if 1 or fewer players remain
+                    if (remainingPlayers <= 1) {
+                        setTimeout(() => {
+                            if (confirm(`Not enough players to continue. Return to main menu?`)) {
+                                handleQuitGame();
+                            }
+                        }, 500);
+                    }
                 }
             }
         }
@@ -876,6 +887,7 @@
             gameChannel = null;
             presenceChannel = null;
             lastKnownPlayers = [];
+            notifiedOfflinePlayers.clear();
             sessionStorage.removeItem('activeGameId');
             showScreen('mainMenu');
         }
@@ -909,10 +921,14 @@
             const selectedButton = event.target.closest('.answer-btn');
             if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
             
+            // Prevent any further interactions
             document.querySelectorAll('.answer-btn').forEach(btn => {
                 btn.disabled = true;
                 btn.style.pointerEvents = 'none';
+                // Force remove focus and active states on mobile
+                btn.blur();
             });
+            
             selectedButton.classList.add('selected');
             
             try {
@@ -957,7 +973,7 @@
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
             
-            // CRITICAL FIX: Clear all previous answer states completely
+            // CRITICAL FIX: Clear all previous answer states completely and remove focus
             const answerButtons = document.querySelectorAll('.answer-btn');
             answerButtons.forEach(btn => { 
                 btn.disabled = false; 
@@ -966,7 +982,14 @@
                 btn.style.backgroundColor = '';
                 btn.style.borderColor = '';
                 btn.style.color = '';
+                // Critical for mobile: remove focus/active states
+                btn.blur();
             });
+            
+            // Force remove any active element focus
+            if (document.activeElement && document.activeElement.classList.contains('answer-btn')) {
+                document.activeElement.blur();
+            }
             
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
