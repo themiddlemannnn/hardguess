@@ -75,7 +75,6 @@
             display: flex;
         }
         
-        /* Scrollbar styling */
         .screen::-webkit-scrollbar {
             width: 6px;
         }
@@ -281,7 +280,22 @@
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
         #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; font-size: clamp(0.9rem, 2.5vw, 1rem); }
 
-        /* Mobile-specific adjustments */
+        .notification-banner {
+            background: linear-gradient(135deg, var(--accent-gold-darker), var(--accent-gold));
+            color: var(--primary-black);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            text-align: center;
+            font-weight: 700;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         @media (max-height: 700px) {
             h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
             h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
@@ -307,7 +321,6 @@
             .player-card img { width: 35px; height: 35px; }
         }
 
-        /* Landscape mobile devices */
         @media (max-height: 500px) and (orientation: landscape) {
             .container { max-height: calc(100vh - 0.25rem); }
             .screen { padding: 0.5rem; }
@@ -394,6 +407,7 @@
         </div>
 
         <div id="game-screen" class="screen">
+            <div id="notification-area"></div>
             <div id="game-timer" class="timer">--</div>
             <p id="question-number" style="text-align:center; margin-bottom: 0.75rem; font-size: clamp(0.9rem, 2.5vw, 1rem);">Question 1/10</p>
             <h2 id="question-text" class="question">Waiting for host to start...</h2>
@@ -480,6 +494,7 @@
         const finalScores = document.getElementById('final-scores');
         const playAgainBtn = document.getElementById('play-again-btn');
         const endMainMenuBtn = document.getElementById('end-main-menu-btn');
+        const notificationArea = document.getElementById('notification-area');
 
         // ===============================================
         //                APPLICATION STATE
@@ -494,6 +509,7 @@
         let roundInProgress = false;
         let presenceChannel = null;
         let heartbeatInterval = null;
+        let lastKnownPlayers = [];
 
         // ===============================================
         //                 UI FUNCTIONS
@@ -511,6 +527,19 @@
         function clearError(el) { 
             el.textContent = ''; 
             el.style.display = 'none'; 
+        }
+
+        function showNotification(message, duration = 3000) {
+            const notification = document.createElement('div');
+            notification.className = 'notification-banner';
+            notification.textContent = message;
+            notificationArea.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateY(-20px)';
+                setTimeout(() => notification.remove(), 300);
+            }, duration);
         }
         
         function renderPlayerList(container, players) {
@@ -783,7 +812,8 @@
             
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
             if (data) { 
-                currentGameSession = data; 
+                currentGameSession = data;
+                lastKnownPlayers = [...data.players];
                 updateUIFromGameState(); 
             } else { 
                 sessionStorage.removeItem('activeGameId'); 
@@ -811,8 +841,18 @@
             
             if (offlinePlayers.length > 0 && currentGameSession.state === 'in_game') {
                 const offlineNames = offlinePlayers.map(p => p.username).join(', ');
-                if (confirm(`Player(s) ${offlineNames} went offline. Return to main menu?`)) {
-                    handleQuitGame();
+                const remainingPlayers = currentGameSession.players.length - offlinePlayers.length;
+                
+                // Show notification
+                showNotification(`${offlineNames} left the game`);
+                
+                // Only force menu return if 1 or fewer players remain
+                if (remainingPlayers <= 1) {
+                    setTimeout(() => {
+                        if (confirm(`Not enough players to continue. Return to main menu?`)) {
+                            handleQuitGame();
+                        }
+                    }, 500);
                 }
             }
         }
@@ -835,6 +875,7 @@
             currentGameSession = null;
             gameChannel = null;
             presenceChannel = null;
+            lastKnownPlayers = [];
             sessionStorage.removeItem('activeGameId');
             showScreen('mainMenu');
         }
@@ -916,11 +957,15 @@
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
             
+            // CRITICAL FIX: Clear all previous answer states completely
             const answerButtons = document.querySelectorAll('.answer-btn');
             answerButtons.forEach(btn => { 
                 btn.disabled = false; 
                 btn.style.pointerEvents = 'auto';
-                btn.classList.remove('selected', 'correct', 'incorrect'); 
+                btn.classList.remove('selected', 'correct', 'incorrect');
+                btn.style.backgroundColor = '';
+                btn.style.borderColor = '';
+                btn.style.color = '';
             });
             
             const qIndex = currentGameSession.current_question_index;
