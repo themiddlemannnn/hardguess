@@ -315,6 +315,24 @@
                 border-color: var(--accent-gold) !important;
             }
         }
+/* 🔥 MOBILE FOCUS & TAP FIX */
+.answer-btn {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+@media (pointer: coarse) {
+    .answer-btn:focus,
+    .answer-btn:active {
+        outline: none !important;
+        box-shadow: none !important;
+        border-color: var(--accent-gold) !important;
+    }
+}
         @media (max-height: 700px) {
             h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
             h2 { font-size: 1.3rem; margin-bottom: 0.5rem; }
