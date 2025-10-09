@@ -56,6 +56,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative; /* For notification banner positioning */
         }
         .screen {
             display: none;
@@ -280,6 +281,25 @@
         }
         #final-scores { width: 100%; text-align: left; margin: 1rem 0; }
         #final-scores .score-row { display: flex; justify-content: space-between; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 5px; margin-bottom: 0.5rem; font-size: clamp(0.9rem, 2.5vw, 1rem); }
+        
+        /* Notification Banner */
+        #notification-banner {
+            position: absolute;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--accent-gold);
+            color: var(--primary-black);
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 700;
+            z-index: 100;
+            transition: bottom 0.5s ease-in-out;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        #notification-banner.show {
+            bottom: 20px;
+        }
 
         /* Mobile-specific adjustments */
         @media (max-height: 700px) {
@@ -331,6 +351,8 @@
 </head>
 <body>
     <div class="container">
+        <div id="notification-banner"></div>
+        
         <div id="auth-screen" class="screen">
             <h1>HardGuess Trivia</h1>
             <button id="google-login-btn" class="google-btn">🚀 Sign in with Google</button>
@@ -378,7 +400,7 @@
         <div id="host-setup-screen" class="screen">
             <h2>Create Your Game</h2>
             <h3>Set the rules for this match</h3>
-            <div class="input-group"><label for="time-limit-select">Time Per Question:</label><select id="time-limit-select"><option value="10">10 Seconds</option><option value="15">15 Seconds</option><option value="20">20 Seconds</option><option value="30">30 Seconds</option></select></div>
+            <div class="input-group"><label for="time-limit-select">Time Per Question:</label><select id="time-limit-select"><option value="10">10 Seconds</option><option value="15" selected>15 Seconds</option><option value="20">20 Seconds</option><option value="30">30 Seconds</option></select></div>
             <div class="input-group"><label for="elim-threshold-select">Eliminate Player After:</label><select id="elim-threshold-select"><option value="3">3 Questions</option><option value="5">5 Questions</option><option value="10">10 Questions</option><option value="999">No Elimination</option></select></div>
             <button id="confirm-creation-btn">Open Lobby & Get Code</button>
             <button id="back-to-main-menu-btn" class="secondary-btn">Back to Main Menu</button>
@@ -421,7 +443,7 @@
 
     <script type="module">
         // ===============================================
-        //             SUPABASE & APP SETUP
+        //           SUPABASE & APP SETUP
         // ===============================================
         const SUPABASE_URL = 'https://mqbtucwhwliaffwcadlh.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xYnR1Y3dod2xpYWZmd2NhZGxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5MTcyODcsImV4cCI6MjA3NTQ5MzI4N30.iMJdU_oR3yUX1izWGIVs_NkxiW0OZ-tfyvbA9jfeyvc';
@@ -429,7 +451,7 @@
         const dbClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // ===============================================
-        //                   DOM ELEMENTS
+        //               DOM ELEMENTS
         // ===============================================
         const screens = { 
             auth: document.getElementById('auth-screen'), 
@@ -441,7 +463,7 @@
             game: document.getElementById('game-screen'), 
             endGame: document.getElementById('end-game-screen') 
         };
-        
+        const notificationBanner = document.getElementById('notification-banner');
         const googleLoginBtn = document.getElementById('google-login-btn');
         const guestLoginBtn = document.getElementById('guest-login-btn');
         const emailInput = document.getElementById('email-input');
@@ -482,7 +504,7 @@
         const endMainMenuBtn = document.getElementById('end-main-menu-btn');
 
         // ===============================================
-        //                APPLICATION STATE
+        //           APPLICATION STATE
         // ===============================================
         let currentUser = null;
         let userProfile = null;
@@ -493,10 +515,11 @@
         let currentCorrectAnswer = null;
         let roundInProgress = false;
         let presenceChannel = null;
-        let heartbeatInterval = null;
+        let knownPlayerUsernames = new Set();
+
 
         // ===============================================
-        //                 UI FUNCTIONS
+        //              UI FUNCTIONS
         // ===============================================
         function showScreen(screenName) { 
             Object.values(screens).forEach(s => s.classList.remove('active')); 
@@ -513,6 +536,14 @@
             el.style.display = 'none'; 
         }
         
+        function showNotification(message) {
+            notificationBanner.textContent = message;
+            notificationBanner.classList.add('show');
+            setTimeout(() => {
+                notificationBanner.classList.remove('show');
+            }, 3000);
+        }
+
         function renderPlayerList(container, players) {
             if (!container || !players) return;
             container.innerHTML = players.map(player => {
@@ -530,39 +561,26 @@
         }
 
         // ===============================================
-        //             AUTHENTICATION & PROFILE
+        //        AUTHENTICATION & PROFILE
         // ===============================================
         async function handleGoogleLogin() {
             clearError(authError);
-            const redirectUrl = 'https://themiddlemannnn.github.io/hardguess';
-            
             const { error } = await dbClient.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    redirectTo: redirectUrl,
-                    skipBrowserRedirect: false
-                }
+                options: { redirectTo: window.location.href }
             });
             if (error) {
                 displayError(authError, 'Google sign-in failed: ' + error.message);
-                console.error('Google OAuth error:', error);
             }
         }
         
         async function handleGuestLogin() {
             clearError(authError);
-            try {
-                const { data, error } = await dbClient.auth.signInAnonymously();
-                if (error) {
-                    displayError(authError, 'Guest login failed: ' + error.message);
-                    console.error('Guest login error:', error);
-                } else if (data?.user) {
-                    currentUser = data.user;
-                    showScreen('profileSetup');
-                }
-            } catch (err) {
-                displayError(authError, 'Guest login failed: ' + err.message);
-                console.error('Guest login exception:', err);
+            const { data, error } = await dbClient.auth.signInAnonymously();
+            if (error) displayError(authError, 'Guest login failed: ' + error.message);
+            else if (data?.user) {
+                currentUser = data.user;
+                showScreen('profileSetup');
             }
         }
         
@@ -603,11 +621,8 @@
                 username: username 
             });
             if (error) { 
-                if (error.code === '23505') {
-                    displayError(profileError, 'Username is already taken.'); 
-                } else {
-                    displayError(profileError, 'Error saving profile.'); 
-                }
+                if (error.code === '23505') displayError(profileError, 'Username is already taken.'); 
+                else displayError(profileError, 'Error saving profile.'); 
             } else {
                 checkUserProfile(currentUser);
             }
@@ -624,11 +639,8 @@
                 username: newUsername 
             }).eq('id', currentUser.id);
             if (error) { 
-                if (error.code === '23505') {
-                    displayError(settingsError, 'Username is already taken.'); 
-                } else {
-                    displayError(settingsError, 'Error saving changes.'); 
-                }
+                if (error.code === '23505') displayError(settingsError, 'Username is already taken.'); 
+                else displayError(settingsError, 'Error saving changes.'); 
             } else { 
                 userProfile.username = newUsername; 
                 welcomeMessage.textContent = `Welcome, ${newUsername}!`; 
@@ -637,43 +649,36 @@
         }
 
         // ===============================================
-        //                GAME/LOBBY LOGIC
+        //           GAME/LOBBY LOGIC
         // ===============================================
         function generateJoinCode() { 
             return Math.random().toString(36).substring(2, 8).toUpperCase(); 
         }
         
         async function confirmAndCreateGame() {
-            try {
-                const gameSettings = { 
-                    host_id: currentUser.id, 
-                    state: 'lobby', 
-                    players: [{
-                        id: currentUser.id, 
-                        username: userProfile.username, 
-                        avatar_url: userProfile.avatar_url, 
-                        score: 0, 
-                        is_eliminated: false
-                    }], 
-                    join_code: generateJoinCode(), 
-                    question_time_limit: parseInt(timeLimitSelect.value, 10), 
-                    elim_threshold: parseInt(elimThresholdSelect.value, 10) 
-                };
-                const { data, error } = await dbClient.from('game_sessions').insert(gameSettings).select().single();
-                if (error) { 
-                    displayError(menuError, 'Could not create game. Please try again.'); 
-                    console.error('Game creation error:', error);
-                    showScreen('mainMenu'); 
-                } else { 
-                    currentGameId = data.id; 
-                    sessionStorage.setItem('activeGameId', data.id); 
-                    await subscribeToGameChannel(data.id); 
-                    showScreen('lobby'); 
-                }
-            } catch (error) {
-                console.error('Exception creating game:', error);
-                displayError(menuError, 'Network error. Please try again.');
-                showScreen('mainMenu');
+            const gameSettings = { 
+                host_id: currentUser.id, 
+                state: 'lobby', 
+                players: [{
+                    id: currentUser.id, 
+                    username: userProfile.username, 
+                    avatar_url: userProfile.avatar_url, 
+                    score: 0, 
+                    is_eliminated: false
+                }], 
+                join_code: generateJoinCode(), 
+                question_time_limit: parseInt(timeLimitSelect.value, 10), 
+                elim_threshold: parseInt(elimThresholdSelect.value, 10) 
+            };
+            const { data, error } = await dbClient.from('game_sessions').insert(gameSettings).select().single();
+            if (error) { 
+                displayError(menuError, 'Could not create game. Please try again.'); 
+                showScreen('mainMenu'); 
+            } else { 
+                currentGameId = data.id; 
+                sessionStorage.setItem('activeGameId', data.id); 
+                await subscribeToGameChannel(data.id); 
+                showScreen('lobby'); 
             }
         }
         
@@ -685,45 +690,35 @@
             }
             clearError(menuError);
             
-            try {
-                const { data, error } = await dbClient.rpc('join_game', { 
-                    join_code_to_find: code 
-                });
-                if (error) {
-                    displayError(menuError, error.message || 'Could not join game.');
-                } else { 
-                    currentGameId = data.id; 
-                    currentGameSession = data; 
-                    sessionStorage.setItem('activeGameId', data.id); 
-                    await subscribeToGameChannel(data.id); 
-                    showScreen('lobby'); 
-                }
-            } catch (error) {
-                console.error('Exception joining game:', error);
-                displayError(menuError, 'Network error. Please try again.');
+            const { data, error } = await dbClient.rpc('join_game', { 
+                join_code_to_find: code 
+            });
+            if (error) {
+                displayError(menuError, error.message || 'Could not join game.');
+            } else { 
+                currentGameId = data.id; 
+                currentGameSession = data; 
+                sessionStorage.setItem('activeGameId', data.id); 
+                await subscribeToGameChannel(data.id); 
+                showScreen('lobby'); 
             }
         }
         
         async function handleStartGame() {
             if (currentUser.id !== currentGameSession?.host_id) return;
             
-            try {
-                const { data: qIds, error } = await dbClient.from('questions').select('id');
-                if (error || !qIds || qIds.length === 0) { 
-                    alert("Error: Could not fetch questions. Please try again."); 
-                    return; 
-                }
-                const gameQuestionIds = qIds.map(q => q.id).sort(() => 0.5 - Math.random()).slice(0, 10);
-                await dbClient.from('game_sessions').update({ 
-                    state: 'in_game', 
-                    current_question_index: 0, 
-                    question_ids: gameQuestionIds, 
-                    round_start_time: new Date().toISOString() 
-                }).eq('id', currentGameId);
-            } catch (error) {
-                console.error('Error starting game:', error);
-                alert("Failed to start game. Please try again.");
+            const { data: qIds, error } = await dbClient.from('questions').select('id');
+            if (error || !qIds || qIds.length === 0) { 
+                showNotification("Error: Could not fetch questions."); 
+                return; 
             }
+            const gameQuestionIds = qIds.map(q => q.id).sort(() => 0.5 - Math.random()).slice(0, 10);
+            await dbClient.from('game_sessions').update({ 
+                state: 'in_game', 
+                current_question_index: 0, 
+                question_ids: gameQuestionIds, 
+                round_start_time: new Date().toISOString() 
+            }).eq('id', currentGameId);
         }
         
         async function handlePlayAgain() {
@@ -754,32 +749,19 @@
                 .subscribe();
             
             // Setup presence tracking
-            presenceChannel = dbClient.channel(`presence-${gameId}`)
-                .on('presence', { event: 'sync' }, () => {
-                    const state = presenceChannel.presenceState();
-                    checkPlayerPresence(state);
-                })
-                .subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
-                        await presenceChannel.track({
-                            user_id: currentUser.id,
-                            username: userProfile.username,
-                            online_at: new Date().toISOString()
-                        });
-                    }
-                });
-            
-            // Send heartbeat every 5 seconds
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = setInterval(() => {
-                if (presenceChannel) {
-                    presenceChannel.track({
+            presenceChannel = dbClient.channel(`presence-${gameId}`);
+            presenceChannel.on('presence', { event: 'sync' }, () => {
+                const state = presenceChannel.presenceState();
+                handlePresenceSync(state);
+            });
+            presenceChannel.subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    await presenceChannel.track({
                         user_id: currentUser.id,
-                        username: userProfile.username,
                         online_at: new Date().toISOString()
                     });
                 }
-            }, 5000);
+            });
             
             const { data } = await dbClient.from('game_sessions').select('*').eq('id', gameId).single();
             if (data) { 
@@ -801,27 +783,31 @@
         }
 
         // ===============================================
-        //               CORE GAMEPLAY LOOP
+        //        CORE GAMEPLAY & PRESENCE
         // ===============================================
-        function checkPlayerPresence(presenceState) {
-            if (!currentGameSession || currentGameSession.state === 'finished') return;
+        async function handlePresenceSync(presenceState) {
+            if (!currentGameSession || currentUser.id !== currentGameSession.host_id || currentGameSession.state === 'finished') {
+                return;
+            }
             
-            const onlineUserIds = Object.values(presenceState).flat().map(p => p.user_id);
-            const offlinePlayers = currentGameSession.players.filter(p => !onlineUserIds.includes(p.id));
-            
-            if (offlinePlayers.length > 0 && currentGameSession.state === 'in_game') {
-                const offlineNames = offlinePlayers.map(p => p.username).join(', ');
-                if (confirm(`Player(s) ${offlineNames} went offline. Return to main menu?`)) {
-                    handleQuitGame();
-                }
+            const onlineUserIds = new Set(Object.values(presenceState).flat().map(p => p.user_id));
+            const offlinePlayers = currentGameSession.players.filter(p => !onlineUserIds.has(p.id));
+
+            for (const player of offlinePlayers) {
+                // The host calls the RPC to remove the player who is no longer present.
+                // NOTE: You must create a 'kick_player' RPC function in your Supabase SQL editor.
+                // This function should remove the player from the game's player list
+                // and check if the game should end (if remaining players < 2).
+                await dbClient.rpc('kick_player', {
+                    game_id_to_update: currentGameId,
+                    user_id_to_kick: player.id
+                });
             }
         }
         
         async function handleQuitGame() {
             clearInterval(timerInterval);
-            clearInterval(heartbeatInterval);
             if (gameChannel) dbClient.removeChannel(gameChannel);
-            if (presenceChannel) await presenceChannel.untrack();
             if (presenceChannel) dbClient.removeChannel(presenceChannel);
             
             if (currentGameId && currentGameSession) {
@@ -837,6 +823,7 @@
             presenceChannel = null;
             sessionStorage.removeItem('activeGameId');
             showScreen('mainMenu');
+            knownPlayerUsernames.clear();
         }
         
         function startRoundTimer() {
@@ -874,14 +861,10 @@
             });
             selectedButton.classList.add('selected');
             
-            try {
-                await dbClient.rpc('submit_answer', { 
-                    game_id_to_update: currentGameId, 
-                    answer_key: selectedButton.dataset.option 
-                });
-            } catch (error) {
-                console.error('Error submitting answer:', error);
-            }
+            await dbClient.rpc('submit_answer', { 
+                game_id_to_update: currentGameId, 
+                answer_key: selectedButton.dataset.option 
+            });
         }
         
         async function revealAnswers() {
@@ -892,9 +875,7 @@
             const selectedButton = answersGrid.querySelector('.answer-btn.selected');
             const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
 
-            if (correctButton) {
-                correctButton.classList.add('correct');
-            }
+            if (correctButton) correctButton.classList.add('correct');
             if (selectedButton && selectedButton.dataset.option !== currentCorrectAnswer) {
                 selectedButton.classList.add('incorrect');
             }
@@ -907,7 +888,7 @@
                 });
                 if(error) {
                     console.error("Advance round error:", error.message);
-                    alert("Network error. Retrying...");
+                    showNotification("Network error. Retrying...");
                     setTimeout(() => revealAnswers(), 2000);
                 }
             }
@@ -916,8 +897,8 @@
         async function displayCurrentQuestion() {
             if (!currentGameSession || !currentGameSession.question_ids) return;
             
-            const answerButtons = document.querySelectorAll('.answer-btn');
-            answerButtons.forEach(btn => { 
+            // **FIX:** Clear all styles from answer buttons before showing the new question.
+            document.querySelectorAll('.answer-btn').forEach(btn => { 
                 btn.disabled = false; 
                 btn.style.pointerEvents = 'auto';
                 btn.classList.remove('selected', 'correct', 'incorrect'); 
@@ -929,33 +910,31 @@
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
             questionText.textContent = 'Loading...';
             
-            try {
-                const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
-                if (error || !question) { 
-                    questionText.textContent = "Error loading question."; 
-                    console.error('Question load error:', error);
-                    return; 
-                }
-                
-                questionText.textContent = question.question_text;
-                answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
-                answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
-                answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
-                answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
-                
-                currentCorrectAnswer = question.correct_answer_key;
-                
-                startRoundTimer();
-            } catch (error) {
-                console.error('Exception loading question:', error);
-                questionText.textContent = "Error loading question.";
+            const { data: question, error } = await dbClient.from('questions').select('*').eq('id', questionId).single();
+            if (error || !question) { 
+                questionText.textContent = "Error loading question."; 
+                return; 
             }
+            
+            questionText.textContent = question.question_text;
+            answersGrid.querySelector('[data-option="a"]').textContent = question.option_a;
+            answersGrid.querySelector('[data-option="b"]').textContent = question.option_b;
+            answersGrid.querySelector('[data-option="c"]').textContent = question.option_c;
+            answersGrid.querySelector('[data-option="d"]').textContent = question.option_d;
+            
+            currentCorrectAnswer = question.correct_answer_key;
+            
+            startRoundTimer();
         }
 
         function displayEndGameResults() {
             const sortedPlayers = [...currentGameSession.players].sort((a, b) => b.score - a.score);
-            const winner = sortedPlayers[0];
-            winnerAnnouncement.textContent = `${winner.username} is the winner!`;
+            if (sortedPlayers.length > 0) {
+                const winner = sortedPlayers[0];
+                winnerAnnouncement.textContent = `${winner.username} is the winner!`;
+            } else {
+                 winnerAnnouncement.textContent = `No winner this time!`;
+            }
             finalScores.innerHTML = sortedPlayers.map((p, i) => 
                 `<div class="score-row"><span>#${i + 1} ${p.username}</span><span>${p.score} pts</span></div>`
             ).join('');
@@ -970,6 +949,16 @@
             if (!currentGameSession) return;
             const activeScreenId = document.querySelector('.screen.active')?.id;
             const isHost = currentUser.id === currentGameSession.host_id;
+
+            // **NEW:** Announce players who have left
+            const newPlayerUsernames = new Set(currentGameSession.players.map(p => p.username));
+            if (knownPlayerUsernames.size > 0) {
+                const leftPlayers = [...knownPlayerUsernames].filter(name => !newPlayerUsernames.has(name));
+                leftPlayers.forEach(name => {
+                    showNotification(`${name} has left the game.`);
+                });
+            }
+            knownPlayerUsernames = newPlayerUsernames;
 
             if (currentGameSession.state !== 'in_game' && timerInterval) {
                 clearInterval(timerInterval);
@@ -996,7 +985,7 @@
         }
 
         // ===============================================
-        //                EVENT LISTENERS
+        //           EVENT LISTENERS
         // ===============================================
         googleLoginBtn.addEventListener('click', handleGoogleLogin);
         guestLoginBtn.addEventListener('click', handleGuestLogin);
@@ -1004,26 +993,17 @@
         emailSignupBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
-            if (!email || !password) { 
-                displayError(authError, 'Please fill in all fields.'); 
-                return; 
-            }
+            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
             clearError(authError);
             const { error } = await dbClient.auth.signUp({ email, password });
-            if (error) {
-                displayError(authError, error.message);
-            } else {
-                displayError(authError, 'Check your email to confirm your account!');
-            }
+            if (error) displayError(authError, error.message);
+            else displayError(authError, 'Check your email to confirm your account!');
         });
         
         emailLoginBtn.addEventListener('click', async () => {
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
-            if (!email || !password) { 
-                displayError(authError, 'Please fill in all fields.'); 
-                return; 
-            }
+            if (!email || !password) { displayError(authError, 'Please fill in all fields.'); return; }
             clearError(authError);
             const { error } = await dbClient.auth.signInWithPassword({ email, password });
             if (error) displayError(authError, error.message);
@@ -1055,24 +1035,20 @@
         
         gameCodeDisplay.addEventListener('click', () => {
             navigator.clipboard.writeText(gameCodeDisplay.textContent).then(() => {
-                const originalCode = gameCodeDisplay.textContent;
-                gameCodeDisplay.textContent = 'COPIED!';
-                setTimeout(() => {
-                    gameCodeDisplay.textContent = originalCode;
-                }, 1500);
+                showNotification('Copied to clipboard!');
             });
         });
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', async () => {
-            clearInterval(timerInterval);
-            clearInterval(heartbeatInterval);
             if (presenceChannel) await presenceChannel.untrack();
         });
         
+        // Initial load
         (async () => {
             const { data: { session } } = await dbClient.auth.getSession();
             if (session) { 
+                currentUser = session.user;
                 await checkUserProfile(session.user); 
             } else {
                 showScreen('auth');
