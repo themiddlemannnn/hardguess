@@ -950,14 +950,16 @@
         }
         async function handleAnswerSelection(event) {
             const selectedButton = event.target.closest('.answer-btn');
-            if (!selectedButton || !roundInProgress || selectedButton.disabled) return;
-            // 🔥 MOBILE FOCUS FIX: prevent focus retention
+            if (!selectedButton || !roundInProgress || selectedButton.classList.contains('selected')) return;
+
+            // ✅ Apply visual selection FIRST
+            selectedButton.classList.add('selected');
+
+            // ✅ Disable all buttons AFTER selection is visible
             document.querySelectorAll('.answer-btn').forEach(btn => {
                 btn.disabled = true;
-                btn.style.pointerEvents = 'none';
-                btn.blur();
             });
-            selectedButton.classList.add('selected');
+
             try {
                 await dbClient.rpc('submit_answer', { 
                     game_id_to_update: currentGameId, 
@@ -970,7 +972,6 @@
         async function revealAnswers() {
             roundInProgress = false;
             clearInterval(timerInterval);
-            document.querySelectorAll('.answer-btn').forEach(btn => btn.disabled = true);
             const selectedButton = answersGrid.querySelector('.answer-btn.selected');
             const correctButton = answersGrid.querySelector(`[data-option="${currentCorrectAnswer}"]`);
             if (correctButton) {
@@ -995,24 +996,9 @@
             if (!currentGameSession || !currentGameSession.question_ids) return;
             const answerButtons = document.querySelectorAll('.answer-btn');
             answerButtons.forEach(btn => { 
-                btn.disabled = false; 
-                btn.style.pointerEvents = 'auto';
+                btn.disabled = false;
                 btn.classList.remove('selected', 'correct', 'incorrect');
-                btn.blur();
             });
-            // 🔥 CRITICAL: Remove focus from any active element
-            if (document.activeElement?.classList.contains('answer-btn')) {
-                document.activeElement.blur();
-            }
-            // Prevent focus on touch
-            const preventFocus = (e) => {
-                if (e.target.closest('.answer-btn')) {
-                    e.preventDefault();
-                }
-            };
-            answersGrid.removeEventListener('touchstart', preventFocus);
-            answersGrid.addEventListener('touchstart', preventFocus, { passive: false });
-
             const qIndex = currentGameSession.current_question_index;
             const questionId = currentGameSession.question_ids[qIndex];
             questionNumber.textContent = `Question ${qIndex + 1}/${currentGameSession.question_ids.length}`;
